@@ -1,7 +1,6 @@
 import os
 from flask import Flask, request, jsonify, render_template_string
-from androguard.core.bytecodes.dvm import DalvikVMFormat
-from androguard.core.analysis.analysis import Analysis
+from androguard.misc import AnalyzeAPK
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
@@ -47,7 +46,7 @@ HTML_PAGE = '''
     <p>اختر ملفات الـ DEX (يمكنك اختيار عدة ملفات معا مثل classes.dex و classes2.dex):</p>
     
     <div class="file-box">
-        <input type="file" id="dexFiles" multiple accept=".dex">
+        <input type="file" id="dexFiles" multiple>
     </div>
 
     <div class="btn-group">
@@ -79,7 +78,7 @@ HTML_PAGE = '''
         const filterInput = document.getElementById('filterInput');
 
         if (fileInput.files.length === 0) {
-            alert('الرجاء اختيار ملف DEX واحد على الأقل!');
+            alert('الرجاء اختيار ملف واحد على الأقل!');
             return;
         }
 
@@ -114,7 +113,7 @@ HTML_PAGE = '''
                 currentProgress += 5;
                 progressBar.style.width = currentProgress + '%';
                 progressBar.innerText = currentProgress + '%';
-                statusDiv.innerText = `جاري تحليل هيكل DEX واستخراج دوال VIP / Pro ... (${currentProgress}%)`;
+                statusDiv.innerText = `جاري تحليل هيكل الملفات واستخراج دوال VIP / Pro ... (${currentProgress}%)`;
             }
         }, 500);
 
@@ -207,9 +206,8 @@ def analyze():
             file_path = os.path.join(UPLOAD_FOLDER, file.filename)
             file.save(file_path)
             
-            with open(file_path, "rb") as f:
-                d = DalvikVMFormat(f.read())
-            dx = Analysis(d)
+            # استخدام AnalyzeAPK العام والآمن تماماً لتعارضات المسارات
+            a, d, dx = AnalyzeAPK(file_path)
             
             for method in dx.get_methods():
                 class_name = method.get_class_name()
@@ -232,3 +230,4 @@ def analyze():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+ app.run(host='0.0.0.0', port=port)
