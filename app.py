@@ -64,7 +64,7 @@ HTML_PAGE = '''
         progressContainer.style.display = 'block';
         progressBar.style.width = '0%';
         progressBar.innerText = '0%';
-        statusDiv.innerText = 'جاري رفع ملف الـ DEX...';
+        statusDiv.innerText = 'جاري رفع الملف...';
         outputDiv.innerText = '';
 
         const xhr = new XMLHttpRequest();
@@ -130,21 +130,15 @@ def home():
 @app.route('/analyze', methods=['POST'])
 def analyze():
     if 'file' not in request.files:
-        return jsonify({'success': False, 'error': 'لم يتم العثور على الملف'})
+        return jsonify({'success': محل, 'error': 'لم يتم العثور على الملف'})
     
     file = request.files['file']
     file_path = os.path.join(UPLOAD_FOLDER, file.filename)
     file.save(file_path)
 
     try:
-        # استخدام AnalyzeAPK أو الطريقة الآمنة عبر Analyze
-        # بما أن الملف مرفوع كـ DEX منفرد، سنقوم بتحليله بالدوال المتاحة
-        from androguard.core.bytecodes.dvm import DalvikVMFormat
-        from androguard.analysis.analysis import Analysis
-        
-        with open(file_path, "rb") as f:
-            d = DalvikVMFormat(f.read())
-        dx = Analysis(d)
+        # استخدام AnalyzeAPK لقراءة ملف الـ DEX مباشرة بدون أخطاء المسارات الداخلية
+        a, d, dx = AnalyzeAPK(file_path)
         
         unlock_keywords = [
             'vip', 'pro', 'premium', 'unlock', 'lock', 'sub', 'subscription', 
