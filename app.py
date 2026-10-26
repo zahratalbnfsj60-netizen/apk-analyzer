@@ -1,7 +1,6 @@
 import os
 from flask import Flask, request, jsonify, render_template_string
-from androguard.core.bytecodes.dvm import DalvikVMFormat
-from androguard.analysis.analysis import Analysis
+from androguard.misc import AnalyzeAPK
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
@@ -138,14 +137,15 @@ def analyze():
     file.save(file_path)
 
     try:
-        # قراءة وتحليل ملف الـ DEX مباشرة باستخدام Androguard
+        # استخدام AnalyzeAPK أو الطريقة الآمنة عبر Analyze
+        # بما أن الملف مرفوع كـ DEX منفرد، سنقوم بتحليله بالدوال المتاحة
+        from androguard.core.bytecodes.dvm import DalvikVMFormat
+        from androguard.analysis.analysis import Analysis
+        
         with open(file_path, "rb") as f:
-            dex_bytes = f.read()
-            
-        d = DalvikVMFormat(dex_bytes)
+            d = DalvikVMFormat(f.read())
         dx = Analysis(d)
         
-        # كلمات مفتاحية دقيقة للبحث عن فتح المميزات والاشتراكات
         unlock_keywords = [
             'vip', 'pro', 'premium', 'unlock', 'lock', 'sub', 'subscription', 
             'license', 'auth', 'purchase', 'pay', 'billing', 'inapp', 'gold', 'plus'
@@ -160,7 +160,6 @@ def analyze():
             lower_sig = full_sig.lower()
             if any(kw in lower_sig for kw in unlock_keywords):
                 matched_methods.append(full_sig)
-                
                 if len(matched_methods) >= 800:
                     break
                     
