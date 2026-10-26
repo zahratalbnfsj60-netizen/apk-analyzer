@@ -2,13 +2,9 @@ import os
 import re
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from flask import Flask, jsonify, render_template_string
 
-# --- ألوان العرض في التيرمينال ---
-GREEN = "\033[92m"  # دالة ذات تطابق قوي جداً (هدف محتمل)
-CYAN = "\033[96m"  # مسار الملف وا الاسم
-YELLOW = "\033[93m"  # تنبيهات أو إحصائيات
-RED = "\033[91m"  # استثناءات أو مسارات مهملة
-RESET = "\033[0m"  # إعادة اللون الافتراضي
+app = Flask(__name__)
 
 # 1. الحزم والـ SDKs التي سيتم تجاهلها كلياً لتسريع البحث وتصفية الضوضاء
 EXCLUDED_PACKAGES = [
@@ -40,18 +36,14 @@ TARGET_KEYWORDS = [
     "upgrade",
 ]
 
-
 def should_skip(file_path):
-    """التحقق مما إذا كان الملف ينتمي لـ SDK خارجي مستبعد لتوفير الوقت"""
     path_str = str(file_path).replace("\\", "/")
     for excl in EXCLUDED_PACKAGES:
         if excl in path_str:
             return True
     return False
 
-
 def analyze_smali_file(file_path):
-    """قراءة وتحليل ملف الـ Smali واستخراج الدوال المستهدفة فقط"""
     if should_skip(file_path):
         return []
 
@@ -60,20 +52,15 @@ def analyze_smali_file(file_path):
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
 
-        # تقسيم الملف إلى دوال بناءً على كلمة .method
         methods = re.split(r"(?=\.method)", content)
         for method in methods:
             if not method.strip():
                 continue
 
             method_lower = method.lower()
-
-            # حساب عدد الكلمات المفتاحية الموجودة في الدالة
             score = sum(1 for kw in TARGET_KEYWORDS if kw in method_lower)
 
-            # شروط التصفية الصارمة: يجب أن تحتوي على الأقل على كلمة مفتاحية واحدة وليست دالة فحص أمان فارغة
             if score > 0 and "throw p0" not in method:
-                # استخراج توقيع الدالة (اسمها)
                 sig_match = re.search(
                     r"\.method\s+(?:public|private|protected|static|final|abstract|\s)*([^\n]+)",
                     method,
@@ -89,7 +76,7 @@ def analyze_smali_file(file_path):
                         "file": str(file_path),
                         "name": method_name,
                         "score": score,
-                        "code": method.strip(),
+                        "code": method.strip()[:500], # جلب أول 500 حرف من الدالة للعرض
                     }
                 )
     except Exception:
@@ -97,17 +84,10 @@ def analyze_smali_file(file_path):
 
     return matched_methods
 
-
 def scan_smali_directory(root_dir):
-    """بحث متوازي وسريع في كافة مجلدات المشروع"""
-    print(f"{YELLOW}[*] جاري البحث عن ملفات الـ Smali وتصفية الـ SDKs...{RESET}")
     smali_files = list(Path(root_dir).glob("**/*.smali"))
-    print(
-        f"{YELLOW}[*] تم العثور على {len(smali_files)} ملف مستهدف للفحص.{RESET}\n"
-    )
-
     all_results = []
-    # استخدام ThreadPoolExecutor للبحث السريع جداً عبر المعالجات المتعددة
+    
     with ThreadPoolExecutor() as executor:
         futures = [
             executor.submit(analyze_smali_file, file) for file in smali_files
@@ -117,40 +97,49 @@ def scan_smali_directory(root_dir):
             if res:
                 all_results.extend(res)
 
-    return all_results
+    return sorted(all_results, key=lambda x: x["score"], reverse=True)
 
+@app.route("/")
+def home():
+    # يبحث تلقائياً في مجلد باسم smali مرفق مع المشروع، أو المجلد الحالي
+    target_directory = "." 
+    if os.path.exists("smali"):
+        target_directory = "smali"
+        
+    results = scan_smali_directory(target_directory)
+    
+    # صفحة HTML بسيطة لعرض النتائج مباشرة على المتصفح
+    html_template = """
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <title>نتائج فحص الـ Smali</title>
+        <style>
+            body { background-color: #121212; color: #e0e0e0; font-family: Tahoma, sans-serif; padding: 20px; }
+            .card { background: #1e1e1e; border: 1px solid #333; padding: 15px; margin-bottom: 15px; border-radius: 8px; }
+            h2 { color: #4caf50; }
+            pre { background: #2d2d2d; padding: 10px; border-radius: 5px; overflow-x: auto; color: #ce9178; }
+            .file { color: #4fc3f7; }
+            .score { color: #ff9800; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <h1>نتائج تحليل دوال الاشتراكات والـ VIP</h1>
+        <p>عدد الدوال المكتشفة: {{ results|length }}</p>
+        {% for item in results %}
+        <div class="card">
+            <span class="file">الملف: {{ item.file }}</span><br>
+            <h2>الدالة: {{ item.name }}</h2>
+            <span class="score">درجة التطابق: {{ item.score }}</span>
+            <pre>{{ item.code }}</pre>
+        </div>
+        {% endfor %}
+    </body>
+    </html>
+    """
+    return render_template_string(html_template, results=results)
 
 if __name__ == "__main__":
-    # ضع مسار مجلد فك الضغط (يعمل تلقائياً في نفس المجلد إذا وُضع داحله)
-    target_directory = input(
-        "[?] أدخل مسار مجلد استخراج التطبيق (اضغط Enter لاختيار المجلد الحالي): "
-    ).strip()
-    if not target_directory:
-        target_directory = "."
-
-    results = scan_smali_directory(target_directory)
-
-    print(
-        f"\n{GREEN}=================================================={RESET}"
-    )
-    print(
-        f"{GREEN} تم العثور على {len(link := len(results))} دالة محتملة تتعلق بالاشتراكات والمميزات المدفوعة:{RESET}"
-    )
-    print(
-        f"{GREEN}=================================================={RESET}\n"
-    )
-
-    # فرز النتائج تنازلياً حسب قوة التطابق (Score)
-    results = sorted(results, key=lambda x: x["score"], reverse=True)
-
-    for idx, item in enumerate(results, 1):
-        print(f"{CYAN}[{idx}] الملف: {item['file']}{RESET}")
-        print(f"{GREEN}    الدالة: {item['name']} (Score: {item['score']}){RESET}")
-        print(f"    ----------------------------------------------")
-        # عرض أول أسطر من الكود لتوفير الرؤية السريعة
-        code_lines = item["code"].split("\n")[:10]
-        for line in code_lines:
-            print(f"    {line}")
-        print(
-            f"    ..............................................\n"
-        )
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
