@@ -12,7 +12,7 @@ HTML_PAGE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مستخرج دوال VIP, Pro & Premium الذهبية</title>
+    <title>محلل دوال VIP & Pro الذهبي</title>
     <style>
         body { font-family: Tahoma, sans-serif; background-color: #121212; color: #e0e0e0; padding: 15px; margin: 0; text-align: center; }
         .container { max-width: 750px; background: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); margin: auto; }
@@ -27,14 +27,14 @@ HTML_PAGE = """
         button.btn-danger:hover { background: #a71d2a; }
         button.btn-success { background: #28a745; color: #fff; }
         button.btn-success:hover { background: #1e7e34; }
+        
         #progress-container { width: 100%; background: #333; border-radius: 6px; margin-top: 15px; overflow: hidden; display: none; }
-        #progress-bar { width: 0%; height: 20px; background: #ffb700; text-align: center; color: #000; font-weight: bold; font-size: 0.8rem; transition: width 0.3s ease; }
-        #status { margin-top: 8px; color: #ffca28; font-size: 0.85rem; }
+        #progress-bar { width: 0%; height: 22px; background: #ffb700; text-align: center; color: #000; font-weight: bold; font-size: 0.8rem; transition: width 0.3s ease; line-height: 22px; }
+        #status { margin-top: 8px; color: #ffca28; font-size: 0.85rem; font-weight: bold; }
+        
         .search-box { width: 100%; padding: 10px; margin-top: 15px; background: #2a2a2a; border: 1px solid #ffb700; color: #fff; border-radius: 6px; box-sizing: border-box; display: none; font-size: 0.9rem; }
         
         #methods-list { text-align: left; background: #0b0b0b; padding: 10px; border-radius: 8px; margin-top: 15px; max-height: 400px; overflow-y: auto; direction: ltr; display: none; }
-        
-        /* تصميم الكروت باللون الذهبي الخالص لدوال المميزات */
         .method-card { background: #181818; padding: 10px; margin-bottom: 8px; border-radius: 6px; border-left: 5px solid #ffb700; font-family: monospace; font-size: 0.8rem; }
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
         .badge { padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; background: #ffb700; color: #000; }
@@ -46,17 +46,17 @@ HTML_PAGE = """
 </head>
 <body>
 <div class="container">
-    <h2>مستخرج دوال VIP, Pro & Premium الذهبية</h2>
-    <p>اختر ملفات الـ DEX لفحص دوال فتح المميزات الحصرية حصرياً:</p>
+    <h2>محلل دوال VIP & Pro الذهبي السريع</h2>
+    <p>اختر ملفات الـ DEX أو APK الفحص الحقيقي واستخراج دوال فتح المميزات:</p>
     
     <div class="file-box">
         <input type="file" id="dexFiles" multiple>
     </div>
 
     <div class="btn-group">
-        <button onclick="uploadAndAnalyze()">بدء الفحص الذهبي</button>
-        <button class="btn-success" id="downloadBtn" onclick="downloadTxt()" style="display:none;">تحميل النتائج TXT</button>
-        <button class="btn-danger" onclick="clearAll()">تفريغ وحذف</button>
+        <button onclick="uploadAndAnalyze()">بدء الفحص والتحليل</button>
+        <button class="btn-success" id="downloadBtn" onclick="downloadTxt()" style="display:none;">تحميل TXT</button>
+        <button class="btn-danger" onclick="clearAll()">حذف وتفريغ</button>
     </div>
 
     <div id="progress-container">
@@ -94,7 +94,7 @@ HTML_PAGE = """
         progressContainer.style.display = 'block';
         progressBar.style.width = '0%';
         progressBar.innerText = '0%';
-        statusDiv.innerText = 'جاري رفع الملفات والبحث عن دوال المميزات...';
+        statusDiv.innerText = 'جاري رفع الملفات إلى السيرفر الخارجي...';
         listDiv.style.display = 'none';
         listDiv.innerHTML = '';
         downloadBtn.style.display = 'none';
@@ -103,22 +103,24 @@ HTML_PAGE = """
         const xhr = new XMLHttpRequest();
         xhr.open('POST', '/analyze', true);
 
+        // نسبة مئوية حقيقية أثناء الرفع
         xhr.upload.onprogress = function (e) {
             if (e.lengthComputable) {
-                const percentComplete = Math.round((e.loaded / e.total) * 50);
+                const percentComplete = Math.round((e.loaded / e.total) * 60);
                 progressBar.style.width = percentComplete + '%';
                 progressBar.innerText = percentComplete + '%';
-                statusDiv.innerText = 'جاري الرفع... (' + percentComplete + '%)';
+                statusDiv.innerText = `جاري الرفع الفعلي... (${percentComplete}%)`;
             }
         };
 
-        let currentProgress = 50;
+        // محاكاة نسبة التحليل المعالجة بالسيرفر
+        let currentProgress = 60;
         const interval = setInterval(() => {
-            if (currentProgress < 90) {
+            if (currentProgress < 95) {
                 currentProgress += 5;
                 progressBar.style.width = currentProgress + '%';
                 progressBar.innerText = currentProgress + '%';
-                statusDiv.innerText = 'جاري فلترة وتصنيف دوال VIP & Pro ... (' + currentProgress + '%)';
+                statusDiv.innerText = `جاري استخراج وتحليل دوال VIP & Pro ... (${currentProgress}%)`;
             }
         }, 300);
 
@@ -132,25 +134,25 @@ HTML_PAGE = """
                     
                     if (result.success) {
                         allResults = result.methods;
-                        statusDiv.innerText = 'تم الانتهاء! العثور على ' + allResults.length + ' دالة مميزات ذهبية.';
+                        statusDiv.innerText = `تم الانتهاء بنجاح! العثور على ${allResults.length} دالة مميزات ذهبية.`;
                         if (allResults.length > 0) {
                             renderMethods(allResults);
                             downloadBtn.style.display = 'inline-block';
                             filterInput.style.display = 'block';
                         } else {
                             listDiv.style.display = 'block';
-                            listDiv.innerHTML = '<div style="color:#aaa; text-align:center; padding:15px;">لم يتم العثور على دوال VIP أو Pro في الملفات المحددة.</div>';
+                            listDiv.innerHTML = '<div style="color:#aaa; text-align:center; padding:15px;">لم يتم العثور على دوال مطابقة.</div>';
                         }
                     } else {
                         statusDiv.innerText = 'حدث خطأ أثناء التحليل.';
                         listDiv.style.display = 'block';
-                        listDiv.innerHTML = '<div style="color:#ff4444; padding:10px;">خطأ: ' + result.error + '</div>';
+                        listDiv.innerHTML = `<div style="color:#ff4444; padding:10px;">خطأ: ${result.error}</div>`;
                     }
                 } catch (err) {
                     statusDiv.innerText = 'خطأ في معالجة الاستجابة.';
                 }
             } else {
-                statusDiv.innerText = 'فشل الاتصال بالسيرفر.';
+                statusDiv.innerText = 'فشل الاتصال بالسيرفر الخارجي.';
             }
         };
 
@@ -244,9 +246,8 @@ def analyze():
     if not files or all(f.filename == '' for f in files):
         return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات'})
     
-    # حصر الكلمات المفتاحية بدقة فقط على فتح المميزات VIP و Pro و Premium
+    # الكلمات المفتاحية الحصرية فقط لدوال فتح المميزات والاشتراكات
     vip_keywords = ['vip', 'pro', 'premium', 'isvip', 'ispro', 'ispremium', 'issubscribed']
-    
     matched_results = []
     
     try:
@@ -259,13 +260,13 @@ def analyze():
             with open(file_path, "rb") as f:
                 content = f.read()
             
+            # قراءة النصوص والرموز البرمجية من الملف الثنائي
             text_chunks = re.findall(b'[\\x20-\\x7E]{4,}', content)
             for chunk in text_chunks:
                 try:
                     s = chunk.decode('utf-8', errors='ignore').strip()
                     lower_s = s.lower()
                     
-                    # استبعاد النتائج غير المرغوبة والتركيز حصرياً على دوال VIP و Pro و Premium
                     if any(kw == lower_s or kw in lower_s for kw in vip_keywords):
                         if len(s) < 80:
                             suggestion = 'const/4 v0, 0x1 (إرجاع True لفتح الميزة)'
@@ -293,3 +294,4 @@ def analyze():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+ 
