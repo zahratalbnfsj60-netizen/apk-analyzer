@@ -12,51 +12,49 @@ HTML_PAGE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>محلل دوال المميزات الذكي (VIP & Pro Analyzer)</title>
+    <title>مستخرج دوال VIP, Pro & Premium الذهبية</title>
     <style>
         body { font-family: Tahoma, sans-serif; background-color: #121212; color: #e0e0e0; padding: 15px; margin: 0; text-align: center; }
         .container { max-width: 750px; background: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); margin: auto; }
-        h2 { color: #4da6ff; font-size: 1.3rem; margin-bottom: 10px; }
+        h2 { color: #ffb700; font-size: 1.3rem; margin-bottom: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
         p { color: #aaa; font-size: 0.85rem; }
-        .file-box { border: 2px dashed #007bff; padding: 15px; border-radius: 8px; margin: 15px 0; background: #252525; }
+        .file-box { border: 2px dashed #ffb700; padding: 15px; border-radius: 8px; margin: 15px 0; background: #252525; }
         input[type="file"] { color: #fff; width: 100%; font-size: 0.9rem; }
         .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
-        button { background: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; flex: 1; font-size: 0.9rem; min-width: 120px; }
-        button:hover { background: #0056b3; }
-        button.btn-danger { background: #dc3545; }
+        button { background: #ffb700; color: #000; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; flex: 1; font-size: 0.9rem; min-width: 120px; }
+        button:hover { background: #e0a100; }
+        button.btn-danger { background: #dc3545; color: #fff; }
         button.btn-danger:hover { background: #a71d2a; }
-        button.btn-success { background: #28a745; }
+        button.btn-success { background: #28a745; color: #fff; }
         button.btn-success:hover { background: #1e7e34; }
         #progress-container { width: 100%; background: #333; border-radius: 6px; margin-top: 15px; overflow: hidden; display: none; }
-        #progress-bar { width: 0%; height: 20px; background: #00ff66; text-align: center; color: #000; font-weight: bold; font-size: 0.8rem; transition: width 0.3s ease; }
+        #progress-bar { width: 0%; height: 20px; background: #ffb700; text-align: center; color: #000; font-weight: bold; font-size: 0.8rem; transition: width 0.3s ease; }
         #status { margin-top: 8px; color: #ffca28; font-size: 0.85rem; }
-        .search-box { width: 100%; padding: 10px; margin-top: 15px; background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 6px; box-sizing: border-box; display: none; font-size: 0.9rem; }
+        .search-box { width: 100%; padding: 10px; margin-top: 15px; background: #2a2a2a; border: 1px solid #ffb700; color: #fff; border-radius: 6px; box-sizing: border-box; display: none; font-size: 0.9rem; }
+        
         #methods-list { text-align: left; background: #0b0b0b; padding: 10px; border-radius: 8px; margin-top: 15px; max-height: 400px; overflow-y: auto; direction: ltr; display: none; }
-        .method-card { background: #181818; padding: 10px; margin-bottom: 8px; border-radius: 6px; border-left: 5px solid #00ff66; font-family: monospace; font-size: 0.8rem; }
-        .method-card.type-bool { border-left-color: #00bfff; }
-        .method-card.type-limit { border-left-color: #ff9900; }
+        
+        /* تصميم الكروت باللون الذهبي الخالص لدوال المميزات */
+        .method-card { background: #181818; padding: 10px; margin-bottom: 8px; border-radius: 6px; border-left: 5px solid #ffb700; font-family: monospace; font-size: 0.8rem; }
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-        .badge { padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
-        .badge-bool { background: #0056b3; color: #fff; }
-        .badge-limit { background: #b36b00; color: #fff; }
-        .badge-feature { background: #1e7e34; color: #fff; }
-        .item-text { color: #00ff66; word-break: break-all; }
-        .suggestion-box { background: #111; padding: 5px 8px; margin-top: 5px; border-radius: 4px; color: #ffca28; font-size: 0.75rem; display: flex; justify-content: space-between; align-items: center; }
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; background: #ffb700; color: #000; }
+        .item-text { color: #ffb700; word-break: break-all; font-weight: bold; }
+        .suggestion-box { background: #111; padding: 5px 8px; margin-top: 5px; border-radius: 4px; color: #00ff66; font-size: 0.75rem; display: flex; justify-content: space-between; align-items: center; border: 1px dashed #ffb700; }
         .copy-btn { background: #333; color: #fff; border: none; padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; }
-        .copy-btn:hover { background: #007bff; }
+        .copy-btn:hover { background: #ffb700; color: #000; }
     </style>
 </head>
 <body>
 <div class="container">
-    <h2>محلل دوال ومميزات VIP الذكي</h2>
-    <p>اختر ملفات الـ DEX لاستخراج الدوال وتصنيفها مع قيم التعديل المقترحة:</p>
+    <h2>مستخرج دوال VIP, Pro & Premium الذهبية</h2>
+    <p>اختر ملفات الـ DEX لفحص دوال فتح المميزات الحصرية حصرياً:</p>
     
     <div class="file-box">
         <input type="file" id="dexFiles" multiple>
     </div>
 
     <div class="btn-group">
-        <button onclick="uploadAndAnalyze()">بدء الفحص والتحليل</button>
+        <button onclick="uploadAndAnalyze()">بدء الفحص الذهبي</button>
         <button class="btn-success" id="downloadBtn" onclick="downloadTxt()" style="display:none;">تحميل النتائج TXT</button>
         <button class="btn-danger" onclick="clearAll()">تفريغ وحذف</button>
     </div>
@@ -66,7 +64,7 @@ HTML_PAGE = """
     </div>
     <div id="status"></div>
 
-    <input type="text" id="filterInput" class="search-box" placeholder="تصفية النتائج (مثال: isVip, date, pro)..." onkeyup="filterMethods()">
+    <input type="text" id="filterInput" class="search-box" placeholder="تصفية النتائج الذهبية..." onkeyup="filterMethods()">
     
     <div id="methods-list"></div>
 </div>
@@ -96,139 +94,120 @@ HTML_PAGE = """
         progressContainer.style.display = 'block';
         progressBar.style.width = '0%';
         progressBar.innerText = '0%';
-        statusDiv.innerText = 'جاري رفع الملفات والتحليل الذكي...';
+        statusDiv.innerText = 'جاري رفع الملفات والبحث عن دوال المميزات...';
         listDiv.style.display = 'none';
         listDiv.innerHTML = '';
         downloadBtn.style.display = 'none';
-        filterInput.style.display =
-     const query = document.getElementById('filterInput').value.toLowerCase();
-        const filtered = allResults.filter(m => m.text.toLowerCase().includes(query) || m.type.toLowerCase().includes(query));
-        renderMethods(filtered);
-    }
+        filterInput.style.display = 'none';
 
-    function downloadTxt() {
-        const text = allResults.map(r => `[${r.type}] ${r.text} --> Suggested Mod: ${r.suggestion}`).join('\\n');
-        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'VIP_Smart_Analysis.txt';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    }
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/analyze', true);
 
-    function clearAll() {
-        document.getElementById('dexFiles').value = '';
-        document.getElementById('methods-list').style.display = 'none';
-        document.getElementById('methods-list').innerHTML = '';
-        document.getElementById('status').innerText = '';
-        document.getElementById('progress-container').style.display = 'none';
-        document.getElementById('downloadBtn').style.display = 'none';
-        document.getElementById('filterInput').style.display = 'none';
-        document.getElementById('filterInput').value = '';
-        allResults = [];
-    }
-</script>
-</body>
-</html>
-"""
+        xhr.upload.onprogress = function (e) {
+            if (e.lengthComputable) {
+                const percentComplete = Math.round((e.loaded / e.total) * 50);
+                progressBar.style.width = percentComplete + '%';
+                progressBar.innerText = percentComplete + '%';
+                statusDiv.innerText = 'جاري الرفع... (' + percentComplete + '%)';
+            }
+        };
 
-@app.route('/')
-def home():
-    return render_template_string(HTML_PAGE)
+        let currentProgress = 50;
+        const interval = setInterval(() => {
+            if (currentProgress < 90) {
+                currentProgress += 5;
+                progressBar.style.width = currentProgress + '%';
+                progressBar.innerText = currentProgress + '%';
+                statusDiv.innerText = 'جاري فلترة وتصنيف دوال VIP & Pro ... (' + currentProgress + '%)';
+            }
+        }, 300);
 
-@app.route('/analyze', methods=['POST'])
-def analyze():
-    files = []
-    if 'files' in request.files:
-        files = request.files.getlist('files')
-    elif 'file' in request.files:
-        files = request.files.getlist('file')
-        
-    if not files or all(f.filename == '' for f in files):
-        return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات'})
-    
-    unlock_keywords = [
-        'vip', 'pro', 'premium', 'unlock', 'lock', 'sub', 'subscription', 
-        'license', 'auth', 'purchase', 'pay', 'billing', 'inapp', 'gold', 'plus', 
-        'isvip', 'ispro', 'ispremium', 'issubscribed', 'checklicense', 'hasaccess', 'date', 'limit'
-    ]
-    
-    matched_results = []
-    
-    try:
-        for file in files:
-            if not file or file.filename == '':
-                continue
-            file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-            file.save(file_path)
-            
-            with open(file_path, "rb") as f:
-                content = f.read()
-            
-            text_chunks = re.findall(b'[\\x20-\\x7E]{5,}', content)
-            for chunk in text_chunks:
-                try:
-                    s = chunk.decode('utf-8', errors='ignore').strip()
-                    lower_s = s.lower()
+        xhr.onload = function () {
+            clearInterval(interval);
+            if (xhr.status === 200) {
+                try {
+                    const result = JSON.parse(xhr.responseText);
+                    progressBar.style.width = '100%';
+                    progressBar.innerText = '100%';
                     
-                    if any(kw in lower_s for kw in unlock_keywords):
-                        if len(s) < 100:
-                            if any(k in lower_s for k in ['is', 'has', 'check', 'can', 'allow', 'valid']):
-                                category = 'دالة تحقق (Boolean)'
-                                suggestion = 'تعديل قيمة الإرجاع في Smali إلى: const/4 v0, 0x1 (True)'
-                            elif 'date' in lower_s or 'time' in lower_s or 'limit' in lower_s:
-                                category = 'قيود وتواريخ (Limit)'
-                                suggestion = 'تجاوز الشرط أو ضبط القيمة إلى 0 أو تاريخ مستقبلي بعيد'
-                            else:
-                                category = 'ميزة / اشتراك (Feature)'
-                                suggestion = 'تفعيل الشرط أو استبدال القيمة بـ True دائماً'
-                            
-                            result_obj = {
-                                'file': file.filename,
-                                'text': f"[{file.filename}] {s}",
-                                'type': category,
-                                'suggestion': suggestion
-                            }
-                            
-                            if result_obj not in matched_results:
-                                matched_results.append(result_obj)
-                                if len(matched_results) >= 2000:
-                                    break
-                except Exception:
-                    continue
-                    
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                
-        return jsonify({'success': True, 'methods': matched_results})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+                    if (result.success) {
+                        allResults = result.methods;
+                        statusDiv.innerText = 'تم الانتهاء! العثور على ' + allResults.length + ' دالة مميزات ذهبية.';
+                        if (allResults.length > 0) {
+                            renderMethods(allResults);
+                            downloadBtn.style.display = 'inline-block';
+                            filterInput.style.display = 'block';
+                        } else {
+                            listDiv.style.display = 'block';
+                            listDiv.innerHTML = '<div style="color:#aaa; text-align:center; padding:15px;">لم يتم العثور على دوال VIP أو Pro في الملفات المحددة.</div>';
+                        }
+                    } else {
+                        statusDiv.innerText = 'حدث خطأ أثناء التحليل.';
+                        listDiv.style.display = 'block';
+                        listDiv.innerHTML = '<div style="color:#ff4444; padding:10px;">خطأ: ' + result.error + '</div>';
+                    }
+                } catch (err) {
+                    statusDiv.innerText = 'خطأ في معالجة الاستجابة.';
+                }
+            } else {
+                statusDiv.innerText = 'فشل الاتصال بالسيرفر.';
+            }
+        };
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
-meout(() => {
+        xhr.send(formData);
+    }
+
+    function renderMethods(resultsArray) {
+        const listDiv = document.getElementById('methods-list');
+        listDiv.style.display = 'block';
+        listDiv.innerHTML = '';
+
+        resultsArray.forEach((item) => {
+            const card = document.createElement('div');
+            card.className = 'method-card';
+            
+            card.innerHTML = `
+                <div class="card-header">
+                    <span class="badge">💎 دالة مميزات ذهبية</span>
+                    <button class="copy-btn" onclick="copyText('${item.text.replace(/'/g, "\\\\'")}', this)">نسخ النص</button>
+                </div>
+                <div class="item-text">${item.text}</div>
+                <div class="suggestion-box">
+                    <span>💡 تعديل Smali المقترح: ${item.suggestion}</span>
+                    <button class="copy-btn" style="background:#222; color:#ffb700;" onclick="copyText('${item.suggestion.replace(/'/g, "\\\\'")}', this)">نسخ القيمة</button>
+                </div>
+            `;
+            listDiv.appendChild(card);
+        });
+    }
+
+    function copyText(text, btnElement) {
+        navigator.clipboard.writeText(text).then(() => {
+            const originalText = btnElement.innerText;
+            btnElement.innerText = 'تم!';
+            btnElement.style.background = '#ffb700';
+            btnElement.style.color = '#000';
+            setTimeout(() => {
                 btnElement.innerText = originalText;
                 btnElement.style.background = '';
+                btnElement.style.color = '';
             }, 1500);
         });
     }
 
     function filterMethods() {
         const query = document.getElementById('filterInput').value.toLowerCase();
-        const filtered = allResults.filter(m => m.text.toLowerCase().includes(query) || m.type.toLowerCase().includes(query));
+        const filtered = allResults.filter(m => m.text.toLowerCase().includes(query));
         renderMethods(filtered);
     }
 
     function downloadTxt() {
-        const text = allResults.map(r => `[${r.type}] ${r.text} --> Suggested Mod: ${r.suggestion}`).join('\\n');
+        const text = allResults.map(r => `${r.text} --> Suggested Mod: ${r.suggestion}`).join('\\n');
         const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'VIP_Smart_Analysis.txt';
+        a.download = 'Gold_VIP_Methods.txt';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -265,11 +244,8 @@ def analyze():
     if not files or all(f.filename == '' for f in files):
         return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات'})
     
-    unlock_keywords = [
-        'vip', 'pro', 'premium', 'unlock', 'lock', 'sub', 'subscription', 
-        'license', 'auth', 'purchase', 'pay', 'billing', 'inapp', 'gold', 'plus', 
-        'isvip', 'ispro', 'ispremium', 'issubscribed', 'checklicense', 'hasaccess', 'date', 'limit'
-    ]
+    # حصر الكلمات المفتاحية بدقة فقط على فتح المميزات VIP و Pro و Premium
+    vip_keywords = ['vip', 'pro', 'premium', 'isvip', 'ispro', 'ispremium', 'issubscribed']
     
     matched_results = []
     
@@ -283,87 +259,25 @@ def analyze():
             with open(file_path, "rb") as f:
                 content = f.read()
             
-            text_chunks = re.findall(b'[\\x20-\\x7E]{5,}', content)
+            text_chunks = re.findall(b'[\\x20-\\x7E]{4,}', content)
             for chunk in text_chunks:
                 try:
                     s = chunk.decode('utf-8', errors='ignore').strip()
                     lower_s = s.lower()
                     
-                    if any(kw in lower_s for kw in unlock_keywords):
-                        if len(s) < 100:
-                            # تصنيف ذكي وإعطاء قيمة التعديل المقترحة
-                            if any(k in lower_s for k in ['is', 'has', 'check', 'can', 'allow', 'valid']):
-                                category = 'دالة تحقق (Boolean)'
-                                suggestion = 'تعديل قيمة الإرجاع في Smali إلى: const/4 v0, 0x1 (True)'
-                            elif 'date' in lower_s or 'time' in lower_s or 'limit' in lower_s:
-                                category = 'قيود وتواريخ (Limit)'
-                                suggestion = 'تجاوز الشرط أو ضبط القيمة إلى 0 أو تاريخ مستقبلي بعيد'
-                            else:
-                                category = 'ميزة / اشتراك (Feature)'
-                                suggestion = 'تفعيل الشرط أو استبدال القيمة بـ True دائماً'
+                    # استبعاد النتائج غير المرغوبة والتركيز حصرياً على دوال VIP و Pro و Premium
+                    if any(kw == lower_s or kw in lower_s for kw in vip_keywords):
+                        if len(s) < 80:
+                            suggestion = 'const/4 v0, 0x1 (إرجاع True لفتح الميزة)'
                             
                             result_obj = {
                                 'file': file.filename,
                                 'text': f"[{file.filename}] {s}",
-                                'type': category,
                                 'suggestion': suggestion
                             }
                             
                             if result_obj not in matched_results:
                                 matched_results.append(result_obj)
-                                if len(matched_results) >= 2000:
-                                    break
-                except Exception:
-                    continue
-                    
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                
-        return jsonify({'success': True, 'methods': matched_results})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
-فق متصفحات الجوال
-    files = []
-    if 'files' in request.files:
-        files = request.files.getlist('files')
-    elif 'file' in request.files:
-        files = request.files.getlist('file')
-        
-    if not files or all(f.filename == '' for f in files):
-        return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات'})
-    
-    unlock_keywords = [
-        'vip', 'pro', 'premium', 'unlock', 'lock', 'sub', 'subscription', 
-        'license', 'auth', 'purchase', 'pay', 'billing', 'inapp', 'gold', 'plus', 
-        'isvip', 'ispro', 'ispremium', 'issubscribed', 'checklicense', 'hasaccess'
-    ]
-    
-    matched_results = []
-    
-    try:
-        for file in files:
-            if not file or file.filename == '':
-                continue
-            file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-            file.save(file_path)
-            
-            with open(file_path, "rb") as f:
-                content = f.read()
-            
-            text_chunks = re.findall(b'[\\x20-\\x7E]{5,}', content)
-            for chunk in text_chunks:
-                try:
-                    s = chunk.decode('utf-8', errors='ignore').strip()
-                    lower_s = s.lower()
-                    if any(kw in lower_s for kw in unlock_keywords):
-                        if len(s) < 100:
-                            formatted_res = f"[{file.filename}] {s}"
-                            if formatted_res not in matched_results:
-                                matched_results.append(formatted_res)
                                 if len(matched_results) >= 2000:
                                     break
                 except Exception:
