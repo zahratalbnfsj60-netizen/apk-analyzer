@@ -12,7 +12,7 @@ HTML_PAGE = '''
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>فحص APK واستخراج دوال VIP & Pro</title>
+    <title>مستخرج دوال فتح المميزات (VIP & Pro)</title>
     <style>
         body { font-family: Tahoma, sans-serif; background-color: #121212; color: #e0e0e0; padding: 20px; text-align: center; }
         .container { max-width: 650px; background: #1e1e1e; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); margin: auto; }
@@ -21,7 +21,6 @@ HTML_PAGE = '''
         button { background: #007bff; color: white; border: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; }
         button:hover { background: #0056b3; }
         
-        /* شريط التحميل */
         #progress-container { width: 100%; background: #333; border-radius: 8px; margin-top: 20px; overflow: hidden; display: none; }
         #progress-bar { width: 0%; height: 22px; background: #00ff66; text-align: center; color: #000; font-weight: bold; font-size: 0.9rem; transition: width 0.3s ease; }
         
@@ -31,18 +30,18 @@ HTML_PAGE = '''
 </head>
 <body>
 <div class="container">
-    <h2>أداة استخراج دوال VIP, Pro & Premium</h2>
-    <p style="color: #aaa; font-size: 0.9rem;">اختر ملف APK للبحث عن الدوال المرتبطة بالاشتراكات والصلاحيات المتقدمة:</p>
+    <h2>فحص ملفات DEX واستخراج دوال فتح المميزات</h2>
+    <p style="color: #aaa; font-size: 0.9rem;">اختر ملف APK لفحص محتوى DEX واستخراج الدوال المتعلقة بـ VIP، Pro، وفتح المميزات المقفلة:</p>
     
     <input type="file" id="apkFile" accept=".apk"><br>
-    <button onclick="uploadAndAnalyze()">بدء الفحص والبحث</button>
+    <button onclick="uploadAndAnalyze()">بدء فحص ملفات DEX واستخراج الدوال</button>
 
     <div id="progress-container">
         <div id="progress-bar">0%</div>
     </div>
     <div id="status"></div>
 
-    <div id="output">نتائج الدوال المستخرجة ستظهر هنا...</div>
+    <div id="output">نتائج دوال فتح المميزات ستظهر هنا...</div>
 </div>
 
 <script>
@@ -65,32 +64,30 @@ HTML_PAGE = '''
         progressContainer.style.display = 'block';
         progressBar.style.width = '0%';
         progressBar.innerText = '0%';
-        statusDiv.innerText = 'جاري رفع الملف إلى السيرفر...';
+        statusDiv.innerText = 'جاري رفع ملف الـ APK...';
         outputDiv.innerText = '';
 
         const xhr = new XMLHttpRequest();
         xhr.open('POST', '/analyze', true);
 
-        // تتبع نسبة الرفع
         xhr.upload.onprogress = function (e) {
             if (e.lengthComputable) {
-                const percentComplete = Math.round((e.loaded / e.total) * 50); // الرفع يشكل 50% من العملية
+                const percentComplete = Math.round((e.loaded / e.total) * 40);
                 progressBar.style.width = percentComplete + '%';
                 progressBar.innerText = percentComplete + '%';
-                statusDiv.innerText = `جاري رفع الملف... (${percentComplete}%)`;
+                statusDiv.innerText = `جاري الرفع... (${percentComplete}%)`;
             }
         };
 
-        // محاكاة التقدم أثناء معالجة السيرفر
-        let currentProgress = 50;
+        let currentProgress = 40;
         const interval = setInterval(() => {
             if (currentProgress < 90) {
                 currentProgress += 5;
                 progressBar.style.width = currentProgress + '%';
                 progressBar.innerText = currentProgress + '%';
-                statusDiv.innerText = `جاري تحليل ملفات DEX واستخراج دوال VIP / Pro ... (${currentProgress}%)`;
+                statusDiv.innerText = `جاري تحليل ملفات DEX واستخراج دوال المميزات... (${currentProgress}%)`;
             }
-        }, 600);
+        }, 700);
 
         xhr.onload = function () {
             clearInterval(interval);
@@ -101,18 +98,18 @@ HTML_PAGE = '''
                     progressBar.innerText = '100%';
                     
                     if (result.success) {
-                        statusDiv.innerText = `تم الانتهاء بنجاح! العثور على ${result.methods.length} دالة مطابقة:`;
+                        statusDiv.innerText = `تم الانتهاء! العثور على ${result.methods.length} دالة لفتح المميزات والاشتراكات:`;
                         if (result.methods.length > 0) {
                             outputDiv.innerText = result.methods.join('\\n');
                         } else {
-                            outputDiv.innerText = 'لم يتم العثور على دوال مطابقة لكلمات VIP/Pro في هذا التطبيق.';
+                            outputDiv.innerText = 'لم يتم العثور على دوال مطابقة لكلمات فتح المميزات في هذا التطبيق.';
                         }
                     } else {
                         statusDiv.innerText = 'حدث خطأ أثناء التحليل.';
                         outputDiv.innerText = 'خطأ: ' + result.error;
                     }
                 } catch (err) {
-                    statusDiv.innerText = 'خطأ في استجابة السيرفر.';
+                    statusDiv.innerText = 'خطأ في معالجة الاستجابة.';
                 }
             } else {
                 statusDiv.innerText = 'فشل الاتصال بالسيرفر.';
@@ -140,11 +137,14 @@ def analyze():
     file.save(file_path)
 
     try:
-        # فحص وتحليل الـ APK باستخدام Androguard
+        # تحليل ملفات الـ DEX والـ APK بالكامل عبر Androguard
         a, d, dx = AnalyzeAPK(file_path)
         
-        # الكلمات المفتاحية المستهدفة للبحث المخصص
-        keywords = ['vip', 'pro', 'premium', 'sub', 'auth', 'license', 'lock', 'unlock', 'purchase', 'pay']
+        # كلمات مفتاحية دقيقة مرتبطة بفتح المميزات المدفوعة والاشتراكات
+        unlock_keywords = [
+            'vip', 'pro', 'premium', 'unlock', 'lock', 'sub', 'subscription', 
+            'license', 'auth', 'purchase', 'pay', 'billing', 'inapp', 'gold', 'plus'
+        ]
         
         matched_methods = []
         for method in dx.get_methods():
@@ -152,13 +152,13 @@ def analyze():
             method_name = method.get_name()
             full_sig = f"Class: {class_name} --> Method: {method_name}"
             
-            # التحقق إذا كانت الدالة أو الفئة تحتوي على كلمات مفتاحية (بدون حساسية لحالة الأحرف)
             lower_sig = full_sig.lower()
-            if any(kw in lower_sig for kw in keywords):
+            # فحص ما إذا كانت الدالة تحتوي على أي من كلمات فتح المميزات
+            if any(kw in lower_sig for kw in unlock_keywords):
                 matched_methods.append(full_sig)
                 
-                # وضع حد أقصى للنتائج لضمان سرعة الاستجابة
-                if len(matched_methods) >= 600:
+                # وضع حد أقصى للعرض لضمان السرعة
+                if len(matched_methods) >= 700:
                     break
                     
         os.remove(file_path)
