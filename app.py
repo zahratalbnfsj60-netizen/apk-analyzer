@@ -11,40 +11,115 @@ HTML_PAGE = '''
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>فحص واستخراج الدوال من APK</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فحص APK واستخراج دوال VIP & Pro</title>
     <style>
-        body { font-family: Tahoma, sans-serif; background-color: #f4f4f9; padding: 20px; text-align: center; }
-        .container { max-width: 600px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); margin: auto; }
-        input[type="file"] { margin: 20px 0; }
-        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
-        #output { text-align: left; background: #272822; color: #f8f8f2; padding: 15px; border-radius: 5px; margin-top: 20px; max-height: 300px; overflow-y: auto; direction: ltr; font-family: monospace; white-space: pre-wrap; }
+        body { font-family: Tahoma, sans-serif; background-color: #121212; color: #e0e0e0; padding: 20px; text-align: center; }
+        .container { max-width: 650px; background: #1e1e1e; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); margin: auto; }
+        h2 { color: #4da6ff; }
+        input[type="file"] { margin: 20px 0; color: #fff; }
+        button { background: #007bff; color: white; border: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; }
+        button:hover { background: #0056b3; }
+        
+        /* شريط التحميل */
+        #progress-container { width: 100%; background: #333; border-radius: 8px; margin-top: 20px; overflow: hidden; display: none; }
+        #progress-bar { width: 0%; height: 22px; background: #00ff66; text-align: center; color: #000; font-weight: bold; font-size: 0.9rem; transition: width 0.3s ease; }
+        
+        #status { margin-top: 10px; color: #ffca28; font-size: 0.95rem; }
+        #output { text-align: left; background: #000; color: #00ff66; padding: 15px; border-radius: 8px; margin-top: 20px; max-height: 350px; overflow-y: auto; direction: ltr; font-family: monospace; white-space: pre-wrap; font-size: 0.85rem; }
     </style>
 </head>
 <body>
 <div class="container">
-    <h2>أداة استخراج الدوال من ملف APK</h2>
+    <h2>أداة استخراج دوال VIP, Pro & Premium</h2>
+    <p style="color: #aaa; font-size: 0.9rem;">اختر ملف APK للبحث عن الدوال المرتبطة بالاشتراكات والصلاحيات المتقدمة:</p>
+    
     <input type="file" id="apkFile" accept=".apk"><br>
-    <button onclick="uploadApk()">تحليل واستخراج الدوال</button>
-    <div id="output">نتائج التحليل ستظهر هنا...</div>
+    <button onclick="uploadAndAnalyze()">بدء الفحص والبحث</button>
+
+    <div id="progress-container">
+        <div id="progress-bar">0%</div>
+    </div>
+    <div id="status"></div>
+
+    <div id="output">نتائج الدوال المستخرجة ستظهر هنا...</div>
 </div>
+
 <script>
-    async function uploadApk() {
+    function uploadAndAnalyze() {
         const fileInput = document.getElementById('apkFile');
         const outputDiv = document.getElementById('output');
-        if (fileInput.files.length === 0) { alert('اختر ملف APK أولاً!'); return; }
+        const statusDiv = document.getElementById('status');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
 
-        const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
-        outputDiv.innerText = 'جاري رفع الملف وتحليله، قد يستغرق ذلك بعض الوقت...';
-
-        const response = await fetch('/analyze', { method: 'POST', body: formData });
-        const result = await response.json();
-        
-        if (result.success) {
-            outputDiv.innerText = result.methods.join('\\n');
-        } else {
-            outputDiv.innerText = 'خطأ: ' + result.error;
+        if (fileInput.files.length === 0) {
+            alert('الرجاء اختيار ملف APK أولاً!');
+            return;
         }
+
+        const file = fileInput.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        progressContainer.style.display = 'block';
+        progressBar.style.width = '0%';
+        progressBar.innerText = '0%';
+        statusDiv.innerText = 'جاري رفع الملف إلى السيرفر...';
+        outputDiv.innerText = '';
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/analyze', true);
+
+        // تتبع نسبة الرفع
+        xhr.upload.onprogress = function (e) {
+            if (e.lengthComputable) {
+                const percentComplete = Math.round((e.loaded / e.total) * 50); // الرفع يشكل 50% من العملية
+                progressBar.style.width = percentComplete + '%';
+                progressBar.innerText = percentComplete + '%';
+                statusDiv.innerText = `جاري رفع الملف... (${percentComplete}%)`;
+            }
+        };
+
+        // محاكاة التقدم أثناء معالجة السيرفر
+        let currentProgress = 50;
+        const interval = setInterval(() => {
+            if (currentProgress < 90) {
+                currentProgress += 5;
+                progressBar.style.width = currentProgress + '%';
+                progressBar.innerText = currentProgress + '%';
+                statusDiv.innerText = `جاري تحليل ملفات DEX واستخراج دوال VIP / Pro ... (${currentProgress}%)`;
+            }
+        }, 600);
+
+        xhr.onload = function () {
+            clearInterval(interval);
+            if (xhr.status === 200) {
+                try {
+                    const result = JSON.parse(xhr.responseText);
+                    progressBar.style.width = '100%';
+                    progressBar.innerText = '100%';
+                    
+                    if (result.success) {
+                        statusDiv.innerText = `تم الانتهاء بنجاح! العثور على ${result.methods.length} دالة مطابقة:`;
+                        if (result.methods.length > 0) {
+                            outputDiv.innerText = result.methods.join('\\n');
+                        } else {
+                            outputDiv.innerText = 'لم يتم العثور على دوال مطابقة لكلمات VIP/Pro في هذا التطبيق.';
+                        }
+                    } else {
+                        statusDiv.innerText = 'حدث خطأ أثناء التحليل.';
+                        outputDiv.innerText = 'خطأ: ' + result.error;
+                    }
+                } catch (err) {
+                    statusDiv.innerText = 'خطأ في استجابة السيرفر.';
+                }
+            } else {
+                statusDiv.innerText = 'فشل الاتصال بالسيرفر.';
+            }
+        };
+
+        xhr.send(formData);
     }
 </script>
 </body>
@@ -65,18 +140,32 @@ def analyze():
     file.save(file_path)
 
     try:
-        # استخدام الطريقة المتوافقة والمحدثة للتحليل عبر Androguard
+        # فحص وتحليل الـ APK باستخدام Androguard
         a, d, dx = AnalyzeAPK(file_path)
         
-        methods_list = []
+        # الكلمات المفتاحية المستهدفة للبحث المخصص
+        keywords = ['vip', 'pro', 'premium', 'sub', 'auth', 'license', 'lock', 'unlock', 'purchase', 'pay']
+        
+        matched_methods = []
         for method in dx.get_methods():
-            methods_list.append(f"Class: {method.get_class_name()} --> Method: {method.get_name()}")
-            if len(methods_list) >= 500:
-                break
+            class_name = method.get_class_name()
+            method_name = method.get_name()
+            full_sig = f"Class: {class_name} --> Method: {method_name}"
+            
+            # التحقق إذا كانت الدالة أو الفئة تحتوي على كلمات مفتاحية (بدون حساسية لحالة الأحرف)
+            lower_sig = full_sig.lower()
+            if any(kw in lower_sig for kw in keywords):
+                matched_methods.append(full_sig)
                 
+                # وضع حد أقصى للنتائج لضمان سرعة الاستجابة
+                if len(matched_methods) >= 600:
+                    break
+                    
         os.remove(file_path)
-        return jsonify({'success': True, 'methods': methods_list})
+        return jsonify({'success': True, 'methods': matched_methods})
     except Exception as e:
+        if os.path.exists(file_path):
+            os.remove(file_path)
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
