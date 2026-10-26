@@ -12,13 +12,13 @@ HTML_PAGE = '''
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مستخرج دوال المميزات السريع (DEX Analyzer)</title>
+    <title>مستخرج دوال المميزات (VIP & Pro)</title>
     <style>
         body { font-family: Tahoma, sans-serif; background-color: #121212; color: #e0e0e0; padding: 15px; margin: 0; text-align: center; }
         .container { max-width: 700px; background: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); margin: auto; }
         h2 { color: #4da6ff; font-size: 1.3rem; margin-bottom: 10px; }
         p { color: #aaa; font-size: 0.85rem; }
-        .file-box { border: 2px dashed #444; padding: 15px; border-radius: 8px; margin: 15px 0; background: #252525; }
+        .file-box { border: 2px dashed #007bff; padding: 15px; border-radius: 8px; margin: 15px 0; background: #252525; }
         input[type="file"] { color: #fff; width: 100%; font-size: 0.9rem; }
         .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
         button { background: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; flex: 1; font-size: 0.9rem; min-width: 120px; }
@@ -31,22 +31,27 @@ HTML_PAGE = '''
         #progress-bar { width: 0%; height: 20px; background: #00ff66; text-align: center; color: #000; font-weight: bold; font-size: 0.8rem; transition: width 0.3s ease; }
         #status { margin-top: 8px; color: #ffca28; font-size: 0.85rem; }
         .search-box { width: 100%; padding: 10px; margin-top: 15px; background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 6px; box-sizing: border-box; display: none; font-size: 0.9rem; }
-        #output { text-align: left; background: #000; color: #00ff66; padding: 12px; border-radius: 6px; margin-top: 10px; max-height: 300px; overflow-y: auto; direction: ltr; font-family: monospace; white-space: pre-wrap; font-size: 0.8rem; }
+        
+        /* تنسيق قائمة الدوال المميزة القابلة للنسخ */
+        #methods-list { text-align: left; background: #0b0b0b; padding: 10px; border-radius: 8px; margin-top: 15px; max-height: 350px; overflow-y: auto; direction: ltr; display: none; }
+        .method-item { display: flex; justify-content: space-between; align-items: center; background: #181818; padding: 8px 12px; margin-bottom: 6px; border-radius: 6px; border-left: 4px solid #00ff66; font-family: monospace; font-size: 0.8rem; color: #00ff66; }
+        .copy-btn { background: #333; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; }
+        .copy-btn:hover { background: #007bff; }
     </style>
 </head>
 <body>
 <div class="container">
-    <h2>فحص ملفات DEX متعددة واستخراج دوال VIP & Pro</h2>
-    <p>اختر ملفات الـ DEX (مثل classes.dex، classes2.dex) للفحص الفوري واستخراج الدوال:</p>
+    <h2>استخراج دوال VIP, Pro & Premium</h2>
+    <p>اختر ملفات الـ DEX (مثل classes.dex) لاستخراج دوال فتح المميزات والاشتراكات:</p>
     
     <div class="file-box">
         <input type="file" id="dexFiles" multiple>
     </div>
 
     <div class="btn-group">
-        <button onclick="uploadAndAnalyze()">بدء الفحص والتحليل</button>
-        <button class="btn-success" id="downloadBtn" onclick="downloadTxt()" style="display:none;">تصدير TXT</button>
-        <button class="btn-danger" onclick="clearAll()">حذف وتفريغ</button>
+        <button onclick="uploadAndAnalyze()">بدء الفحص الذكي</button>
+        <button class="btn-success" id="downloadBtn" onclick="downloadTxt()" style="display:none;">تحميل TXT</button>
+        <button class="btn-danger" onclick="clearAll()">تفريغ وحذف</button>
     </div>
 
     <div id="progress-container">
@@ -54,9 +59,9 @@ HTML_PAGE = '''
     </div>
     <div id="status"></div>
 
-    <input type="text" id="filterInput" class="search-box" placeholder="ابحث داخل الدوال المستخرجة..." onkeyup="filterMethods()">
+    <input type="text" id="filterInput" class="search-box" placeholder="تصفية ودعم البحث السريع..." onkeyup="filterMethods()">
     
-    <div id="output">نتائج استخراج دوال فتح المميزات ستظهر هنا...</div>
+    <div id="methods-list"></div>
 </div>
 
 <script>
@@ -64,7 +69,7 @@ HTML_PAGE = '''
 
     function uploadAndAnalyze() {
         const fileInput = document.getElementById('dexFiles');
-        const outputDiv = document.getElementById('output');
+        const listDiv = document.getElementById('methods-list');
         const statusDiv = document.getElementById('status');
         const progressContainer = document.getElementById('progress-container');
         const progressBar = document.getElementById('progress-bar');
@@ -84,8 +89,9 @@ HTML_PAGE = '''
         progressContainer.style.display = 'block';
         progressBar.style.width = '0%';
         progressBar.innerText = '0%';
-        statusDiv.innerText = 'جاري رفع الملفات إلى السيرفر...';
-        outputDiv.innerText = '';
+        statusDiv.innerText = 'جاري رفع الملفات...';
+        listDiv.style.display = 'none';
+        listDiv.innerHTML = '';
         downloadBtn.style.display = 'none';
         filterInput.style.display = 'none';
 
@@ -107,7 +113,7 @@ HTML_PAGE = '''
                 currentProgress += 5;
                 progressBar.style.width = currentProgress + '%';
                 progressBar.innerText = currentProgress + '%';
-                statusDiv.innerText = `جاري استخراج دوال VIP / Pro ... (${currentProgress}%)`;
+                statusDiv.innerText = `جاري استخراج وتحليل دوال VIP & Pro ... (${currentProgress}%)`;
             }
         }, 300);
 
@@ -121,17 +127,19 @@ HTML_PAGE = '''
                     
                     if (result.success) {
                         allMethods = result.methods;
-                        statusDiv.innerText = `تم الانتهاء بنجاح! العثور على ${allMethods.length} نتيجة مطابقة.`;
+                        statusDiv.innerText = `تم الانتهاء! العثور على ${allMethods.length} دالة مطابقة.`;
                         if (allMethods.length > 0) {
-                            outputDiv.innerText = allMethods.join('\\n');
+                            renderMethods(allMethods);
                             downloadBtn.style.display = 'inline-block';
                             filterInput.style.display = 'block';
                         } else {
-                            outputDiv.innerText = 'لم يتم العثور على دوال مطابقة في الملفات المحددة.';
+                            listDiv.style.display = 'block';
+                            listDiv.innerHTML = '<div style="color:#aaa; text-align:center; padding:15px;">لم يتم العثور على دوال مطابقة في الملفات المحددة.</div>';
                         }
                     } else {
                         statusDiv.innerText = 'حدث خطأ أثناء التحليل.';
-                        outputDiv.innerText = 'خطأ: ' + result.error;
+                        listDiv.style.display = 'block';
+                        listDiv.innerHTML = `<div style="color:#ff4444; padding:10px;">خطأ: ${result.error}</div>`;
                     }
                 } catch (err) {
                     statusDiv.innerText = 'خطأ في معالجة الاستجابة.';
@@ -144,11 +152,42 @@ HTML_PAGE = '''
         xhr.send(formData);
     }
 
+    function renderMethods(methodsArray) {
+        const listDiv = document.getElementById('methods-list');
+        listDiv.style.display = 'block';
+        listDiv.innerHTML = '';
+
+        methodsArray.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'method-item';
+            
+            const span = document.createElement('span');
+            span.innerText = item;
+            
+            const btn = document.createElement('button');
+            btn.className = 'copy-btn';
+            btn.innerText = 'نسخ';
+            btn.onclick = function() {
+                navigator.clipboard.writeText(item).then(() => {
+                    btn.innerText = 'تم النسخ!';
+                    btn.style.background = '#28a745';
+                    setTimeout(() => {
+                        btn.innerText = 'نسخ';
+                        btn.style.background = '#333';
+                    }, 1500);
+                });
+            };
+
+            div.appendChild(span);
+            div.appendChild(btn);
+            listDiv.appendChild(div);
+        });
+    }
+
     function filterMethods() {
         const query = document.getElementById('filterInput').value.toLowerCase();
-        const outputDiv = document.getElementById('output');
         const filtered = allMethods.filter(m => m.toLowerCase().includes(query));
-        outputDiv.innerText = filtered.length > 0 ? filtered.join('\\n') : 'لا توجد نتائج مطابقة للبحث.';
+        renderMethods(filtered);
     }
 
     function downloadTxt() {
@@ -165,7 +204,8 @@ HTML_PAGE = '''
 
     function clearAll() {
         document.getElementById('dexFiles').value = '';
-        document.getElementById('output').innerText = 'نتائج استخراج دوال فتح المميزات ستظهر هنا...';
+        document.getElementById('methods-list').style.display = 'none';
+        document.getElementById('methods-list').innerHTML = '';
         document.getElementById('status').innerText = '';
         document.getElementById('progress-container').style.display = 'none';
         document.getElementById('downloadBtn').style.display = 'none';
@@ -188,9 +228,10 @@ def analyze():
     if not files or files[0].filename == '':
         return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات'})
     
+    # الكلمات المفتاحية المركزة لفتح المميزات
     unlock_keywords = [
         'vip', 'pro', 'premium', 'unlock', 'lock', 'sub', 'subscription', 
-        'license', 'auth', 'purchase', 'pay', 'billing', 'inapp', 'gold', 'plus'
+        'license', 'auth', 'purchase', 'pay', 'billing', 'inapp', 'gold', 'plus', 'isvip', 'ispro'
     ]
     
     matched_results = []
@@ -200,22 +241,20 @@ def analyze():
             file_path = os.path.join(UPLOAD_FOLDER, file.filename)
             file.save(file_path)
             
-            # قراءة ملف الـ DEX واستخراج الكلمات والدوال المطابقة مباشرة بسرعت فائقة
             with open(file_path, "rb") as f:
                 content = f.read()
             
-            # البحث عن النصوص وأسماء الدوال داخل الملف الثنائي
-            # استخراج الكلمات النصية التي تتوافق مع الكلمات المفتاحية
+            # استخراج النصوص وأسماء الدوال بدقة متناهية من الملف الثنائي
             text_chunks = re.findall(b'[\x20-\x7E]{4,}', content)
             for chunk in text_chunks:
                 try:
                     s = chunk.decode('utf-8', errors='ignore')
                     lower_s = s.lower()
                     if any(kw in lower_s for kw in unlock_keywords):
-                        formatted_res = f"[{file.filename}] Found: {s}"
+                        formatted_res = f"[{file.filename}] {s}"
                         if formatted_res not in matched_results:
                             matched_results.append(formatted_res)
-                            if len(matched_results) >= 2000:
+                            if len(matched_results) >= 1500:
                                 break
                 except:
                     continue
@@ -225,6 +264,12 @@ def analyze():
                 
         return jsonify({'success': True, 'methods': matched_results})
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
+as e:
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
