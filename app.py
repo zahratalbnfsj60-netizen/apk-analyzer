@@ -1,7 +1,6 @@
 import os
+import re
 from flask import Flask, request, jsonify, render_template_string
-from androguard.core.bytecodes.dvm import DalvikVMFormat
-from androguard.core.analysis.analysis import Analysis
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
@@ -13,7 +12,7 @@ HTML_PAGE = '''
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مستخرج دوال المميزات المتقدم (DEX Analyzer)</title>
+    <title>مستخرج دوال المميزات السريع (DEX Analyzer)</title>
     <style>
         body { font-family: Tahoma, sans-serif; background-color: #121212; color: #e0e0e0; padding: 15px; margin: 0; text-align: center; }
         .container { max-width: 700px; background: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); margin: auto; }
@@ -38,7 +37,7 @@ HTML_PAGE = '''
 <body>
 <div class="container">
     <h2>فحص ملفات DEX متعددة واستخراج دوال VIP & Pro</h2>
-    <p>اختر ملفات الـ DEX (يمكنك اختيار عدة ملفات معا مثل classes.dex و classes2.dex):</p>
+    <p>اختر ملفات الـ DEX (مثل classes.dex، classes2.dex) للفحص الفوري واستخراج الدوال:</p>
     
     <div class="file-box">
         <input type="file" id="dexFiles" multiple>
@@ -108,9 +107,9 @@ HTML_PAGE = '''
                 currentProgress += 5;
                 progressBar.style.width = currentProgress + '%';
                 progressBar.innerText = currentProgress + '%';
-                statusDiv.innerText = `جاري تحليل هيكل DEX واستخراج دوال VIP / Pro ... (${currentProgress}%)`;
+                statusDiv.innerText = `جاري استخراج دوال VIP / Pro ... (${currentProgress}%)`;
             }
-        }, 500);
+        }, 300);
 
         xhr.onload = function () {
             clearInterval(interval);
@@ -122,7 +121,7 @@ HTML_PAGE = '''
                     
                     if (result.success) {
                         allMethods = result.methods;
-                        statusDiv.innerText = `تم الانتهاء بنجاح! العثور على ${allMethods.length} دالة مطابقة.`;
+                        statusDiv.innerText = `تم الانتهاء بنجاح! العثور على ${allMethods.length} نتيجة مطابقة.`;
                         if (allMethods.length > 0) {
                             outputDiv.innerText = allMethods.join('\\n');
                             downloadBtn.style.display = 'inline-block';
@@ -194,36 +193,41 @@ def analyze():
         'license', 'auth', 'purchase', 'pay', 'billing', 'inapp', 'gold', 'plus'
     ]
     
-    matched_methods = []
+    matched_results = []
     
     try:
         for file in files:
             file_path = os.path.join(UPLOAD_FOLDER, file.filename)
             file.save(file_path)
             
-            # قراءة وتحليل ملف الـ DEX مباشرة بدون خطأ APK
+            # قراءة ملف الـ DEX واستخراج الكلمات والدوال المطابقة مباشرة بسرعت فائقة
             with open(file_path, "rb") as f:
-                d = DalvikVMFormat(f.read())
-            dx = Analysis(d)
+                content = f.read()
             
-            for method in dx.get_methods():
-                class_name = method.get_class_name()
-                method_name = method.get_name()
-                full_sig = f"[{file.filename}] Class: {class_name} --> Method: {method_name}"
-                
-                lower_sig = full_sig.lower()
-                if any(kw in lower_sig for kw in unlock_keywords):
-                    matched_methods.append(full_sig)
-                    if len(matched_methods) >= 2000:
-                        break
-                        
+            # البحث عن النصوص وأسماء الدوال داخل الملف الثنائي
+            # استخراج الكلمات النصية التي تتوافق مع الكلمات المفتاحية
+            text_chunks = re.findall(b'[\x20-\x7E]{4,}', content)
+            for chunk in text_chunks:
+                try:
+                    s = chunk.decode('utf-8', errors='ignore')
+                    lower_s = s.lower()
+                    if any(kw in lower_s for kw in unlock_keywords):
+                        formatted_res = f"[{file.filename}] Found: {s}"
+                        if formatted_res not in matched_results:
+                            matched_results.append(formatted_res)
+                            if len(matched_results) >= 2000:
+                                break
+                except:
+                    continue
+                    
             if os.path.exists(file_path):
                 os.remove(file_path)
                 
-        return jsonify({'success': True, 'methods': matched_methods})
+        return jsonify({'success': True, 'methods': matched_results})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+run(host='0.0.0.0', port=port)
