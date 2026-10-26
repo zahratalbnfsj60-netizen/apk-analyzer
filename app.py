@@ -1,16 +1,15 @@
 import os
 import re
 import zipfile
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, request, jsonify, render_template_string
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# تجميع التعبيرات المنتظمة مسبقاً لزيادة السرعة أضعافاً مضاعفة
+# تجميع التعبيرات المنتظمة وتخزين الكلمات المفتاحية لمزيد من السرعة
 STRING_PATTERN = re.compile(b'[\x20-\x7E]{4,}')
-
 TARGET_KEYWORDS = [
     'isvip', 'ispro', 'ispremium', 'issubscribed', 'hasaccess', 
     'premium_subscription', 'vip_status', 'pro_status', 'checklicense',
@@ -24,7 +23,7 @@ HTML_PAGE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>محلل دوال VIP & Pro الخارق والسرع</title>
+    <title>محلل دوال VIP & Pro الفائق السرعة</title>
     <style>
         body { font-family: Tahoma, sans-serif; background-color: #121212; color: #e0e0e0; padding: 15px; margin: 0; text-align: center; }
         .container { max-width: 750px; background: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); margin: auto; }
@@ -58,15 +57,15 @@ HTML_PAGE = """
 </head>
 <body>
 <div class="container">
-    <h2>محلل دوال VIP & Pro الخارق والسرع</h2>
-    <p>اختر ملفات الـ DEX أو APK للفحص الفائق والآني:</p>
+    <h2>محلل دوال VIP & Pro الفائق السرعة</h2>
+    <p>اختر ملفات الـ DEX أو APK للفحص الفوري:</p>
     
     <div class="file-box">
         <input type="file" id="dexFiles" multiple>
     </div>
 
     <div class="btn-group">
-        <button onclick="uploadAndAnalyze()">بدء الفحص الخارق</button>
+        <button onclick="uploadAndAnalyze()">بدء الفحص السريع</button>
         <button class="btn-success" id="downloadBtn" onclick="downloadTxt()" style="display:none;">تحميل TXT</button>
         <button class="btn-danger" onclick="clearAll()">حذف وتفريغ</button>
     </div>
@@ -76,7 +75,7 @@ HTML_PAGE = """
     </div>
     <div id="status"></div>
 
-    <input type="text" id="filterInput" class="search-box" placeholder="تصفية النتائج الذهبية..." onkeyup="filterMethods()">
+    <input type="text" id="filterInput" class="search-box" placeholder="تصفية النتائج..." onkeyup="filterMethods()">
     
     <div id="methods-list"></div>
 </div>
@@ -117,22 +116,22 @@ HTML_PAGE = """
 
         xhr.upload.onprogress = function (e) {
             if (e.lengthComputable) {
-                const percentComplete = Math.round((e.loaded / e.total) * 50);
+                const percentComplete = Math.round((e.loaded / e.total) * 40);
                 progressBar.style.width = percentComplete + '%';
                 progressBar.innerText = percentComplete + '%';
                 statusDiv.innerText = `جاري الرفع... (${percentComplete}%)`;
             }
         };
 
-        let currentProgress = 50;
+        let currentProgress = 40;
         const interval = setInterval(() => {
-            if (currentProgress < 95) {
-                currentProgress += 10;
+            if (currentProgress < 90) {
+                currentProgress += 15;
                 progressBar.style.width = currentProgress + '%';
                 progressBar.innerText = currentProgress + '%';
-                statusDiv.innerText = `جاري الفحص الخارق بأعلى سرعة... (${currentProgress}%)`;
+                statusDiv.innerText = `جاري التحليل الخارق بأقصى سرعة... (${currentProgress}%)`;
             }
-        }, 150);
+        }, 100);
 
         xhr.onload = function () {
             clearInterval(interval);
@@ -144,7 +143,7 @@ HTML_PAGE = """
                     
                     if (result.success) {
                         allResults = result.methods;
-                        statusDiv.innerText = `تم الانتهاء بنجاح! العثور على ${allResults.length} دالة.`;
+                        statusDiv.innerText = `تم الانتهاء! العثور على ${allResults.length} دالة.`;
                         if (allResults.length > 0) {
                             renderMethods(allResults);
                             downloadBtn.style.display = 'inline-block';
@@ -238,13 +237,13 @@ def home():
 
 def process_dex_content(content, filename):
     matched = []
-    # استخدام التعبير المجمع مسبقاً STRING_PATTERN للسرعة الفائقة
     text_chunks = STRING_PATTERN.findall(content)
     for chunk in text_chunks:
         try:
             s = chunk.decode('utf-8', errors='ignore').strip()
             lower_s = s.lower()
             
+            # فحص سريع للمفاتيح المستهدفة وتجنب الإعلانات
             if any(kw in lower_s for kw in TARGET_KEYWORDS):
                 if not any(ig in lower_s for ig in IGNORED_KEYWORDS):
                     if len(s) < 70:
@@ -255,11 +254,50 @@ def process_dex_content(content, filename):
                         }
                         if result_obj not in matched:
                             matched.append(result_obj)
-                            if len(matched) >= 1000:
+                            if len(matched) >= 500:
                                 break
         except Exception:
             continue
     return matched
+
+def process_single_file(file):
+    if not file or file.filename == '':
+        return []
+    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+    file.save(file_path)
+    file_results = []
+    
+    try:
+        if file.filename.endswith('.apk') or zipfile.is_zipfile(file_path):
+            with zipfile.ZipFile(file_path, 'r') as z:
+                dex_files = [name for name in z.namelist() if name.endswith('.dex')]
+                # استخراج وفحص جميع ملفات الـ DEX داخل الـ APK بالتوازي الحقيقي
+                with ThreadPoolExecutor() as executor:
+                    futures = {executor.submit(scan_dex_from_zip, file_path, zinfo, file.filename): zinfo for zinfo in dex_files}
+                    for future in as_completed(futures):
+                        file_results.extend(future.result())
+        else:
+            with open(file_path, "rb") as f:
+                content = f.read()
+            file_results.extend(process_dex_content(content, file.filename))
+    except Exception:
+        pass
+    finally:
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+    return file_results
+
+def scan_dex_from_zip(apk_path, zinfo, filename):
+    try:
+        with zipfile.ZipFile(apk_path, 'r') as z:
+            with z.open(zinfo) as dex_file:
+                content = dex_file.read()
+                return process_dex_content(content, f"{filename} -> {zinfo}")
+    except Exception:
+        return []
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
@@ -269,53 +307,17 @@ def analyze():
     
     all_matched_results = []
     
-    def process_single_file(file):
-        if not file or file.filename == '':
-            return []
-        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-        file.save(file_path)
-        file_results = []
-        
-        try:
-            if file.filename.endswith('.apk') or zipfile.is_zipfile(file_path):
-                with zipfile.ZipFile(file_path, 'r') as z:
-                    dex_files = [name for name in z.namelist() if name.endswith('.dex')]
-                    # فحص ملفات الـ DEX بالتوازي داخل ملف الـ APK الواحد
-                    with ThreadPoolExecutor() as executor:
-                        futures = []
-                        for zinfo in dex_files:
-                            futures.append(executor.submit(scan_dex_from_zip, file_path, zinfo, file.filename))
-                        for future in futures:
-                            file_results.extend(future.result())
-            else:
-                with open(file_path, "rb") as f:
-                    content = f.read()
-                file_results.extend(process_dex_content(content, file.filename))
-        except Exception:
-            pass
-        finally:
-            if os.path.exists(file_path):
-                os.remove(file_path)
-        return file_results
-
-    def scan_dex_from_zip(apk_path, zinfo, filename):
-        try:
-            with zipfile.ZipFile(apk_path, 'r') as z:
-                with z.open(zinfo) as dex_file:
-                    content = dex_file.read()
-                    return process_dex_content(content, f"{filename} -> {zinfo}")
-        except Exception:
-            return []
-
-    # استخدام ThreadPoolExecutor لمعالجة عدة ملفات مرفوعة في نفس الوقت
+    # معالجة جميع الملفات المرفوعة دفعة واحدة وبشكل متوازي لتوفير الوقت بالكامل
     with ThreadPoolExecutor() as executor:
-        results = list(executor.map(process_single_file, files))
-        for res in results:
-            all_matched_results.extend(res)
+        futures = [executor.submit(process_single_file, file) for file in files]
+        for future in as_completed(futures):
+            try:
+                all_matched_results.extend(future.result())
+            except Exception:
+                pass
 
     return jsonify({'success': True, 'methods': all_matched_results[:2000]})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
- 
