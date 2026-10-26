@@ -88,8 +88,10 @@ def scan_directory(root_dir):
     print(f"\n{Colors.GREEN}[✔] انتهى الفحص بنجاح!{Colors.RESET}")
 
 if __name__ == "__main__":
-    target_directory = input(f"{Colors.CYAN}أدخل مسار مجلد الـ smali للبدء: {Colors.RESET}").strip()
-    if os.path.exists(target_directory):
-        scan_directory(target_directory)
-    else:
-        print(f"{Colors.RED}[!] المسار غير موجود، تأكد من صحته وحاول مجدداً.{Colors.RESET}")
+    # تحديد المسار تلقائياً بدون انتظار إدخال يدوي (يتوافق مع المنصات السحابية)
+    target_directory = "./smali"
+    if not os.path.exists(target_directory):
+        target_directory = "."
+        
+    print(f"{Colors.CYAN}[*] جاري البحث في المسار: {target_directory}{Colors.RESET}")
+    scan_directory(target_directory)
