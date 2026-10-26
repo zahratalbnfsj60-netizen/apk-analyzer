@@ -1,97 +1,156 @@
 import os
-import sys
 import re
 from concurrent.futures import ThreadPoolExecutor
-import threading
+from pathlib import Path
 
-# إعداد الألوان لعرض النتائج بشكل احترافي
-class Colors:
-    HEADER = '\033[95m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
+# --- ألوان العرض في التيرمينال ---
+GREEN = "\033[92m"  # دالة ذات تطابق قوي جداً (هدف محتمل)
+CYAN = "\033[96m"  # مسار الملف وا الاسم
+YELLOW = "\033[93m"  # تنبيهات أو إحصائيات
+RED = "\033[91m"  # استثناءات أو مسارات مهملة
+RESET = "\033[0m"  # إعادة اللون الافتراضي
 
-# الكلمات المفتاحية المستهدفة حصرياً (الاشتراكات، البرو، الـ VIP، التراخيص)
+# 1. الحزم والـ SDKs التي سيتم تجاهلها كلياً لتسريع البحث وتصفية الضوضاء
+EXCLUDED_PACKAGES = [
+    "com/unity3d",
+    "com/google/android/gms",
+    "com/applovin",
+    "com/google/firebase",
+    "kotlin/",
+    "androidx/",
+    "android/support",
+    "org/json",
+]
+
+# 2. الكلمات المفتاحية الحساسة للاشتراكات والترخيص والمميزات المدفوعة
 TARGET_KEYWORDS = [
-    "premium", "subscription", "vip", "pro", "purchase", 
-    "billing", "license", "unlock", "is_premium", "has_premium", 
-    "sub_status", "is_pro", "is_vip", "purchased", "not_set"
+    "premium",
+    "subscription",
+    "purchase",
+    "vip",
+    "pro",
+    "license",
+    "billing",
+    "is_pro",
+    "is_premium",
+    "has_premium",
+    "sharedpreferences",
+    "not_set",
+    "receipt",
+    "upgrade",
 ]
 
-# الكلمات المستبعدة تماماً (لتجاهل إعلانات Unity, AppLovin, Firebase، وغيرها)
-EXCLUDE_KEYWORDS = [
-    "unity3d", "applovin", "firebase", "ads", "analytics", 
-    "protobuf", "facebook", "adjust", "google/android/gms/ads",
-    "androidx/", "kotlin/", "java/"
-]
 
-print_lock = threading.Lock()
+def should_skip(file_path):
+    """التحقق مما إذا كان الملف ينتمي لـ SDK خارجي مستبعد لتوفير الوقت"""
+    path_str = str(file_path).replace("\\", "/")
+    for excl in EXCLUDED_PACKAGES:
+        if excl in path_str:
+            return True
+    return False
+
 
 def analyze_smali_file(file_path):
-    try:
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-            content = f.read()
-            
-        # التحقق مما إذا كان الملف يتبع حزمة SDK مستبعدة لتوفير الوقت
-        lower_path = file_path.replace('\\', '/').lower()
-        if any(ex in lower_path for ex in EXCLUDE_KEYWORDS):
-            return
+    """قراءة وتحليل ملف الـ Smali واستخراج الدوال المستهدفة فقط"""
+    if should_skip(file_path):
+        return []
 
-        # البحث عن الدوال (.method) داخل الملف
-        methods = re.findall(r'(\.method.*?\.end method)', content, re.DOTALL)
-        
+    matched_methods = []
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read()
+
+        # تقسيم الملف إلى دوال بناءً على كلمة .method
+        methods = re.split(r"(?=\.method)", content)
         for method in methods:
+            if not method.strip():
+                continue
+
             method_lower = method.lower()
-            
-            # التأكد من أن الدالة تحتوي على الأقل على إحدى الكلمات المستهدفة للاشتراكات
-            matched_keywords = [kw for kw in TARGET_KEYWORDS if kw in method_lower]
-            
-            if matched_keywords:
-                # استخراج اسم الدالة للتمييز
-                method_name_match = re.search(r'\.method.*? ([a-zA-Z0-9_<init>]+)\(', method)
-                method_name = method_name_match.group(1) if method_name_match else "unknown_method"
-                
-                with print_lock:
-                    print(f"\n{Colors.GREEN}[+] وجد هدف محتمل في الملف:{Colors.RESET} {file_path}")
-                    print(f"{Colors.YELLOW}    [الدالة]: {Colors.BOLD}{method_name}{Colors.RESET}")
-                    print(f"{Colors.CYAN}    [الكلمات المطابقة]: {', '.join(matched_keywords)}{Colors.RESET}")
-                    print(f"{Colors.HEADER}--------------------------------------------------{Colors.RESET}")
-                    # طباعة أسطر الدالة بشكل مختصر وواضح
-                    lines = method.strip().split('\n')
-                    for line in lines[:15]: # عرض أول 15 سطراً فقط للاختصار
-                        print(f"    {Colors.BLUE}{line}{Colors.RESET}")
-                    if len(lines) > 15:
-                        print(f"    {Colors.RED}... [تم اختصار باقي الأسطر] ...{Colors.RESET}")
-                        
-    except Exception as e:
+
+            # حساب عدد الكلمات المفتاحية الموجودة في الدالة
+            score = sum(1 for kw in TARGET_KEYWORDS if kw in method_lower)
+
+            # شروط التصفية الصارمة: يجب أن تحتوي على الأقل على كلمة مفتاحية واحدة وليست دالة فحص أمان فارغة
+            if score > 0 and "throw p0" not in method:
+                # استخراج توقيع الدالة (اسمها)
+                sig_match = re.search(
+                    r"\.method\s+(?:public|private|protected|static|final|abstract|\s)*([^\n]+)",
+                    method,
+                )
+                method_name = (
+                    sig_match.group(1).strip()
+                    if sig_match
+                    else "Unknown Method"
+                )
+
+                matched_methods.append(
+                    {
+                        "file": str(file_path),
+                        "name": method_name,
+                        "score": score,
+                        "code": method.strip(),
+                    }
+                )
+    except Exception:
         pass
 
-def scan_directory(root_dir):
-    smali_files = []
-    print(f"{Colors.YELLOW}[*] جاري جمع ملفات Smali للبحث السريع...{Colors.RESET}")
-    for root, _, files in os.walk(root_dir):
-        for file in files:
-            if file.endswith('.smali'):
-                smali_files.append(os.path.join(root, file))
-                
-    print(f"{Colors.GREEN}[+] تم العثور على {len(smali_files)} ملف. بدء عملية الفحص الذكي...{Colors.RESET}\n")
-    
-    # استخدام ThreadPoolExecutor للبحث الفائق السرعة عبر خيوط متعددة
-    cpu_cores = os.cpu_count() or 2
-    with ThreadPoolExecutor(max_workers=cpu_cores * 2) as executor:
-        executor.map(analyze_smali_file, smali_files)
-        
-    print(f"\n{Colors.GREEN}[✔] انتهى الفحص بنجاح!{Colors.RESET}")
+    return matched_methods
+
+
+def scan_smali_directory(root_dir):
+    """بحث متوازي وسريع في كافة مجلدات المشروع"""
+    print(f"{YELLOW}[*] جاري البحث عن ملفات الـ Smali وتصفية الـ SDKs...{RESET}")
+    smali_files = list(Path(root_dir).glob("**/*.smali"))
+    print(
+        f"{YELLOW}[*] تم العثور على {len(smali_files)} ملف مستهدف للفحص.{RESET}\n"
+    )
+
+    all_results = []
+    # استخدام ThreadPoolExecutor للبحث السريع جداً عبر المعالجات المتعددة
+    with ThreadPoolExecutor() as executor:
+        futures = [
+            executor.submit(analyze_smali_file, file) for file in smali_files
+        ]
+        for future in futures:
+            res = future.result()
+            if res:
+                all_results.extend(res)
+
+    return all_results
+
 
 if __name__ == "__main__":
-    # تحديد المسار تلقائياً بدون انتظار إدخال يدوي (يتوافق مع المنصات السحابية)
-    target_directory = "./smali"
-    if not os.path.exists(target_directory):
+    # ضع مسار مجلد فك الضغط (يعمل تلقائياً في نفس المجلد إذا وُضع داحله)
+    target_directory = input(
+        "[?] أدخل مسار مجلد استخراج التطبيق (اضغط Enter لاختيار المجلد الحالي): "
+    ).strip()
+    if not target_directory:
         target_directory = "."
-        
-    print(f"{Colors.CYAN}[*] جاري البحث في المسار: {target_directory}{Colors.RESET}")
-    scan_directory(target_directory)
+
+    results = scan_smali_directory(target_directory)
+
+    print(
+        f"\n{GREEN}=================================================={RESET}"
+    )
+    print(
+        f"{GREEN} تم العثور على {len(link := len(results))} دالة محتملة تتعلق بالاشتراكات والمميزات المدفوعة:{RESET}"
+    )
+    print(
+        f"{GREEN}=================================================={RESET}\n"
+    )
+
+    # فرز النتائج تنازلياً حسب قوة التطابق (Score)
+    results = sorted(results, key=lambda x: x["score"], reverse=True)
+
+    for idx, item in enumerate(results, 1):
+        print(f"{CYAN}[{idx}] الملف: {item['file']}{RESET}")
+        print(f"{GREEN}    الدالة: {item['name']} (Score: {item['score']}){RESET}")
+        print(f"    ----------------------------------------------")
+        # عرض أول أسطر من الكود لتوفير الرؤية السريعة
+        code_lines = item["code"].split("\n")[:10]
+        for line in code_lines:
+            print(f"    {line}")
+        print(
+            f"    ..............................................\n"
+        )
