@@ -12,7 +12,7 @@ HTML_PAGE = '''
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مستخرج دوال المميزات (VIP & Pro)</title>
+    <title>مستخرج دوال المميزات الحقيقي (DEX Pro Analyzer)</title>
     <style>
         body { font-family: Tahoma, sans-serif; background-color: #121212; color: #e0e0e0; padding: 15px; margin: 0; text-align: center; }
         .container { max-width: 700px; background: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); margin: auto; }
@@ -31,9 +31,7 @@ HTML_PAGE = '''
         #progress-bar { width: 0%; height: 20px; background: #00ff66; text-align: center; color: #000; font-weight: bold; font-size: 0.8rem; transition: width 0.3s ease; }
         #status { margin-top: 8px; color: #ffca28; font-size: 0.85rem; }
         .search-box { width: 100%; padding: 10px; margin-top: 15px; background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 6px; box-sizing: border-box; display: none; font-size: 0.9rem; }
-        
-        /* تنسيق قائمة الدوال المميزة القابلة للنسخ */
-        #methods-list { text-align: left; background: #0b0b0b; padding: 10px; border-radius: 8px; margin-top: 15px; max-height: 350px; overflow-y: auto; direction: ltr; display: none; }
+        #methods-list { text-align: left; background: #0b0b0b; padding: 10px; border-radius: 8px; margin-top: 15px; max-height: 380px; overflow-y: auto; direction: ltr; display: none; }
         .method-item { display: flex; justify-content: space-between; align-items: center; background: #181818; padding: 8px 12px; margin-bottom: 6px; border-radius: 6px; border-left: 4px solid #00ff66; font-family: monospace; font-size: 0.8rem; color: #00ff66; }
         .copy-btn { background: #333; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; }
         .copy-btn:hover { background: #007bff; }
@@ -41,15 +39,15 @@ HTML_PAGE = '''
 </head>
 <body>
 <div class="container">
-    <h2>استخراج دوال VIP, Pro & Premium</h2>
-    <p>اختر ملفات الـ DEX (مثل classes.dex) لاستخراج دوال فتح المميزات والاشتراكات:</p>
+    <h2>تحليل واستخراج دوال VIP & Pro الحقيقية</h2>
+    <p>اختر ملفات الـ DEX (مثل classes.dex) لبدء التحليل الفوري واستخراج الدوال:</p>
     
     <div class="file-box">
         <input type="file" id="dexFiles" multiple>
     </div>
 
     <div class="btn-group">
-        <button onclick="uploadAndAnalyze()">بدء الفحص الذكي</button>
+        <button onclick="uploadAndAnalyze()">بدء الفحص الحقيقي</button>
         <button class="btn-success" id="downloadBtn" onclick="downloadTxt()" style="display:none;">تحميل TXT</button>
         <button class="btn-danger" onclick="clearAll()">تفريغ وحذف</button>
     </div>
@@ -59,7 +57,7 @@ HTML_PAGE = '''
     </div>
     <div id="status"></div>
 
-    <input type="text" id="filterInput" class="search-box" placeholder="تصفية ودعم البحث السريع..." onkeyup="filterMethods()">
+    <input type="text" id="filterInput" class="search-box" placeholder="تصفية النتائج (مثال: vip, pro, sub)..." onkeyup="filterMethods()">
     
     <div id="methods-list"></div>
 </div>
@@ -89,7 +87,7 @@ HTML_PAGE = '''
         progressContainer.style.display = 'block';
         progressBar.style.width = '0%';
         progressBar.innerText = '0%';
-        statusDiv.innerText = 'جاري رفع الملفات...';
+        statusDiv.innerText = 'جاري رفع الملفات وتحليلها...';
         listDiv.style.display = 'none';
         listDiv.innerHTML = '';
         downloadBtn.style.display = 'none';
@@ -103,7 +101,7 @@ HTML_PAGE = '''
                 const percentComplete = Math.round((e.loaded / e.total) * 50);
                 progressBar.style.width = percentComplete + '%';
                 progressBar.innerText = percentComplete + '%';
-                statusDiv.innerText = `جاري الرفع... (${percentComplete}%)`;
+                statusDiv.innerText = 'جاري الرفع... (' + percentComplete + '%)';
             }
         };
 
@@ -113,7 +111,7 @@ HTML_PAGE = '''
                 currentProgress += 5;
                 progressBar.style.width = currentProgress + '%';
                 progressBar.innerText = currentProgress + '%';
-                statusDiv.innerText = `جاري استخراج وتحليل دوال VIP & Pro ... (${currentProgress}%)`;
+                statusDiv.innerText = 'جاري مطابقة وتصنيف دوال المميزات الحقيقية ... (' + currentProgress + '%)';
             }
         }, 300);
 
@@ -127,7 +125,7 @@ HTML_PAGE = '''
                     
                     if (result.success) {
                         allMethods = result.methods;
-                        statusDiv.innerText = `تم الانتهاء! العثور على ${allMethods.length} دالة مطابقة.`;
+                        statusDiv.innerText = 'تم الانتهاء بنجاح! العثور على ' + allMethods.length + ' دالة ومميزات.';
                         if (allMethods.length > 0) {
                             renderMethods(allMethods);
                             downloadBtn.style.display = 'inline-block';
@@ -139,7 +137,7 @@ HTML_PAGE = '''
                     } else {
                         statusDiv.innerText = 'حدث خطأ أثناء التحليل.';
                         listDiv.style.display = 'block';
-                        listDiv.innerHTML = `<div style="color:#ff4444; padding:10px;">خطأ: ${result.error}</div>`;
+                        listDiv.innerHTML = '<div style="color:#ff4444; padding:10px;">خطأ: ' + result.error + '</div>';
                     }
                 } catch (err) {
                     statusDiv.innerText = 'خطأ في معالجة الاستجابة.';
@@ -157,7 +155,7 @@ HTML_PAGE = '''
         listDiv.style.display = 'block';
         listDiv.innerHTML = '';
 
-        methodsArray.forEach((item, index) => {
+        methodsArray.forEach((item) => {
             const div = document.createElement('div');
             div.className = 'method-item';
             
@@ -226,6 +224,54 @@ def home():
 def analyze():
     files = request.files.getlist('files')
     if not files or files[0].filename == '':
+        return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات'})
+    
+    # كلمات مفتاحية دقيقة وشاملة لدوال واشتراكات المميزات
+    unlock_keywords = [
+        'vip', 'pro', 'premium', 'unlock', 'lock', 'sub', 'subscription', 
+        'license', 'auth', 'purchase', 'pay', 'billing', 'inapp', 'gold', 'plus', 
+        'isvip', 'ispro', 'ispremium', 'issubscribed', 'checklicense', 'hasaccess'
+    ]
+    
+    matched_results = []
+    
+    try:
+        for file in files:
+            file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+            file.save(file_path)
+            
+            with open(file_path, "rb") as f:
+                content = f.read()
+            
+            # استخراج الأنماط البرمجية والنصوص المرتبطة بالأسماء والدوال بدقة
+            text_chunks = re.findall(b'[\\x20-\\x7E]{5,}', content)
+            for chunk in text_chunks:
+                try:
+                    s = chunk.decode('utf-8', errors='ignore').strip()
+                    lower_s = s.lower()
+                    
+                    # تصفية النصوص لتكون قريبة من شكل الدوال أو الأسماء البرمجية
+                    if any(kw in lower_s for kw in unlock_keywords):
+                        if len(s) < 100: # استبعاد الجمل الطويلة غير المفيدة
+                            formatted_res = f"[{file.filename}] {s}"
+                            if formatted_res not in matched_results:
+                                matched_results.append(formatted_res)
+                                if len(matched_results) >= 2000:
+                                    break
+                except Exception:
+                    continue
+                    
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                
+        return jsonify({'success': True, 'methods': matched_results})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
+files[0].filename == '':
         return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات'})
     
     # الكلمات المفتاحية المركزة لفتح المميزات
