@@ -8,7 +8,7 @@ app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# تجميع التعبيرات المنتظمة وتخزين الكلمات المفتاحية لمزيد من السرعة
+# تحسين تعبيرات البحث وتثبيت الكلمات المفتاحية الذكية
 STRING_PATTERN = re.compile(b'[\x20-\x7E]{4,}')
 TARGET_KEYWORDS = [
     'isvip', 'ispro', 'ispremium', 'issubscribed', 'hasaccess', 
@@ -23,51 +23,64 @@ HTML_PAGE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>محلل دوال VIP & Pro الفائق السرعة</title>
+    <title>محلل دوال VIP & Pro | الإصدار الفاخر والسرع</title>
     <style>
-        body { font-family: Tahoma, sans-serif; background-color: #121212; color: #e0e0e0; padding: 15px; margin: 0; text-align: center; }
-        .container { max-width: 750px; background: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); margin: auto; }
-        h2 { color: #ffb700; font-size: 1.3rem; margin-bottom: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-        p { color: #aaa; font-size: 0.85rem; }
-        .file-box { border: 2px dashed #ffb700; padding: 15px; border-radius: 8px; margin: 15px 0; background: #252525; }
-        input[type="file"] { color: #fff; width: 100%; font-size: 0.9rem; }
-        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
-        button { background: #ffb700; color: #000; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; flex: 1; font-size: 0.9rem; min-width: 120px; }
-        button:hover { background: #e0a100; }
-        button.btn-danger { background: #dc3545; color: #fff; }
-        button.btn-danger:hover { background: #a71d2a; }
-        button.btn-success { background: #28a745; color: #fff; }
-        button.btn-success:hover { background: #1e7e34; }
+        :root {
+            --bg-color: #0d1117;
+            --card-bg: #161b22;
+            --border-color: #30363d;
+            --gold: #f0b429;
+            --gold-hover: #d99b14;
+            --text-main: #c9d1d9;
+            --text-muted: #8b949e;
+        }
+        body { font-family: system-ui, -apple-system, Tahoma, sans-serif; background-color: var(--bg-color); color: var(--text-main); padding: 20px; margin: 0; text-align: center; }
+        .container { max-width: 800px; background: var(--card-bg); padding: 25px; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: 0 8px 24px rgba(0,0,0,0.5); margin: auto; }
+        h2 { color: var(--gold); font-size: 1.5rem; margin-bottom: 5px; font-weight: 800; letter-spacing: -0.5px; }
+        p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; }
         
-        #progress-container { width: 100%; background: #333; border-radius: 6px; margin-top: 15px; overflow: hidden; display: none; }
-        #progress-bar { width: 0%; height: 22px; background: #ffb700; text-align: center; color: #000; font-weight: bold; font-size: 0.8rem; transition: width 0.3s ease; line-height: 22px; }
-        #status { margin-top: 8px; color: #ffca28; font-size: 0.85rem; font-weight: bold; }
+        .file-box { border: 2px dashed var(--gold); padding: 20px; border-radius: 12px; margin: 15px 0; background: rgba(240, 180, 41, 0.03); transition: background 0.3s; }
+        .file-box:hover { background: rgba(240, 180, 41, 0.06); }
+        input[type="file"] { color: var(--text-main); width: 100%; font-size: 0.9rem; cursor: pointer; }
         
-        .search-box { width: 100%; padding: 10px; margin-top: 15px; background: #2a2a2a; border: 1px solid #ffb700; color: #fff; border-radius: 6px; box-sizing: border-box; display: none; font-size: 0.9rem; }
+        .btn-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 15px; }
+        button { background: var(--gold); color: #000; border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; flex: 1; font-size: 0.95rem; min-width: 130px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(240,180,41,0.2); }
+        button:hover { background: var(--gold-hover); transform: translateY(-1px); }
+        button.btn-danger { background: #da3633; color: #fff; box-shadow: 0 4px 12px rgba(218,54,51,0.2); }
+        button.btn-danger:hover { background: #b62324; }
+        button.btn-success { background: #2ea043; color: #fff; box-shadow: 0 4px 12px rgba(46,160,67,0.2); }
+        button.btn-success:hover { background: #238636; }
         
-        #methods-list { text-align: left; background: #0b0b0b; padding: 10px; border-radius: 8px; margin-top: 15px; max-height: 400px; overflow-y: auto; direction: ltr; display: none; }
-        .method-card { background: #181818; padding: 10px; margin-bottom: 8px; border-radius: 6px; border-left: 5px solid #ffb700; font-family: monospace; font-size: 0.8rem; }
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-        .badge { padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; background: #ffb700; color: #000; }
-        .item-text { color: #ffb700; word-break: break-all; font-weight: bold; }
-        .suggestion-box { background: #111; padding: 5px 8px; margin-top: 5px; border-radius: 4px; color: #00ff66; font-size: 0.75rem; display: flex; justify-content: space-between; align-items: center; border: 1px dashed #ffb700; }
-        .copy-btn { background: #333; color: #fff; border: none; padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; }
-        .copy-btn:hover { background: #ffb700; color: #000; }
+        #progress-container { width: 100%; background: #21262d; border-radius: 8px; margin-top: 20px; overflow: hidden; display: none; border: 1px solid var(--border-color); }
+        #progress-bar { width: 0%; height: 24px; background: linear-gradient(90deg, #f0b429, #ffd369); text-align: center; color: #000; font-weight: bold; font-size: 0.85rem; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); line-height: 24px; }
+        #status { margin-top: 10px; color: var(--gold); font-size: 0.9rem; font-weight: 600; }
+        
+        .search-box { width: 100%; padding: 12px; margin-top: 15px; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; box-sizing: border-box; display: none; font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
+        .search-box:focus { border-color: var(--gold); }
+        
+        #methods-list { text-align: left; background: #010409; padding: 15px; border-radius: 10px; margin-top: 15px; max-height: 450px; overflow-y: auto; direction: ltr; display: none; border: 1px solid var(--border-color); }
+        .method-card { background: var(--card-bg); padding: 12px; margin-bottom: 10px; border-radius: 8px; border-left: 5px solid var(--gold); font-family: monospace; font-size: 0.85rem; border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .badge { padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; background: rgba(240,180,41,0.15); color: var(--gold); border: 1px solid rgba(240,180,41,0.3); }
+        .item-text { color: #58a6ff; word-break: break-all; font-weight: bold; }
+        .suggestion-box { background: #0d1117; padding: 8px 10px; margin-top: 8px; border-radius: 6px; color: #3fb950; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center; border: 1px dashed rgba(63, 185, 80, 0.4); }
+        .copy-btn { background: #21262d; color: var(--text-main); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; transition: background 0.2s; }
+        .copy-btn:hover { background: var(--gold); color: #000; border-color: var(--gold); }
     </style>
 </head>
 <body>
 <div class="container">
-    <h2>محلل دوال VIP & Pro الفائق السرعة</h2>
-    <p>اختر ملفات الـ DEX أو APK للفحص الفوري:</p>
+    <h2>محلل دوال VIP & Pro الفاخر</h2>
+    <p>ارفع ملفات الـ DEX أو APK للاستخراج والتحليل الصاروخي الفوري:</p>
     
     <div class="file-box">
         <input type="file" id="dexFiles" multiple>
     </div>
 
     <div class="btn-group">
-        <button onclick="uploadAndAnalyze()">بدء الفحص السريع</button>
-        <button class="btn-success" id="downloadBtn" onclick="downloadTxt()" style="display:none;">تحميل TXT</button>
-        <button class="btn-danger" onclick="clearAll()">حذف وتفريغ</button>
+        <button onclick="uploadAndAnalyze()">بدء الفحص الصاروخي</button>
+        <button class="btn-success" id="downloadBtn" onclick="downloadTxt()" style="display:none;">تحميل النتائج TXT</button>
+        <button class="btn-danger" onclick="clearAll()">إعادة ضبط</button>
     </div>
 
     <div id="progress-container">
@@ -75,7 +88,7 @@ HTML_PAGE = """
     </div>
     <div id="status"></div>
 
-    <input type="text" id="filterInput" class="search-box" placeholder="تصفية النتائج..." onkeyup="filterMethods()">
+    <input type="text" id="filterInput" class="search-box" placeholder="🔍 تصفية النتائج الذكية..." onkeyup="filterMethods()">
     
     <div id="methods-list"></div>
 </div>
@@ -105,7 +118,7 @@ HTML_PAGE = """
         progressContainer.style.display = 'block';
         progressBar.style.width = '0%';
         progressBar.innerText = '0%';
-        statusDiv.innerText = 'جاري رفع الملفات...';
+        statusDiv.innerText = 'جاري رفع الملفات بأمان...';
         listDiv.style.display = 'none';
         listDiv.innerHTML = '';
         downloadBtn.style.display = 'none';
@@ -116,22 +129,22 @@ HTML_PAGE = """
 
         xhr.upload.onprogress = function (e) {
             if (e.lengthComputable) {
-                const percentComplete = Math.round((e.loaded / e.total) * 40);
+                const percentComplete = Math.round((e.loaded / e.total) * 45);
                 progressBar.style.width = percentComplete + '%';
                 progressBar.innerText = percentComplete + '%';
                 statusDiv.innerText = `جاري الرفع... (${percentComplete}%)`;
             }
         };
 
-        let currentProgress = 40;
+        let currentProgress = 45;
         const interval = setInterval(() => {
-            if (currentProgress < 90) {
+            if (currentProgress < 92) {
                 currentProgress += 15;
                 progressBar.style.width = currentProgress + '%';
                 progressBar.innerText = currentProgress + '%';
-                statusDiv.innerText = `جاري التحليل الخارق بأقصى سرعة... (${currentProgress}%)`;
+                statusDiv.innerText = `⚡ جارٍ الفحص العميق والتحليل المتوازي... (${currentProgress}%)`;
             }
-        }, 100);
+        }, 80);
 
         xhr.onload = function () {
             clearInterval(interval);
@@ -143,25 +156,25 @@ HTML_PAGE = """
                     
                     if (result.success) {
                         allResults = result.methods;
-                        statusDiv.innerText = `تم الانتهاء! العثور على ${allResults.length} دالة.`;
+                        statusDiv.innerText = `✨ تم الانتهاء بنجاح تام! العثور على ${allResults.length} دالة مطابقة.`;
                         if (allResults.length > 0) {
                             renderMethods(allResults);
                             downloadBtn.style.display = 'inline-block';
                             filterInput.style.display = 'block';
                         } else {
                             listDiv.style.display = 'block';
-                            listDiv.innerHTML = '<div style="color:#aaa; text-align:center; padding:15px;">لم يتم العثور على دوال مطابقة.</div>';
+                            listDiv.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">لم يتم العثور على دوال مطابقة للمعايير.</div>';
                         }
                     } else {
-                        statusDiv.innerText = 'حدث خطأ أثناء التحليل.';
+                        statusDiv.innerText = 'حدث خطأ أثناء معالجة البيانات.';
                         listDiv.style.display = 'block';
-                        listDiv.innerHTML = `<div style="color:#ff4444; padding:10px;">خطأ: ${result.error}</div>`;
+                        listDiv.innerHTML = `<div style="color:#da3633; padding:10px;">خطأ: ${result.error}</div>`;
                     }
                 } catch (err) {
-                    statusDiv.innerText = 'خطأ في معالجة الاستجابة.';
+                    statusDiv.innerText = 'خطأ في قراءة استجابة الخادم.';
                 }
             } else {
-                statusDiv.innerText = 'فشل الاتصال بالسيرفر.';
+                statusDiv.innerText = 'فشل الاتصال بالخادم.';
             }
         };
 
@@ -179,13 +192,13 @@ HTML_PAGE = """
             
             card.innerHTML = `
                 <div class="card-header">
-                    <span class="badge">💎 دالة مميزات حقيقية</span>
+                    <span class="badge">💎 دالة مميزات VIP حقيقية</span>
                     <button class="copy-btn" onclick="copyText('${item.text.replace(/'/g, "\\\\'")}', this)">نسخ النص</button>
                 </div>
                 <div class="item-text">${item.text}</div>
                 <div class="suggestion-box">
-                    <span>💡 تعديل Smali المقترح: ${item.suggestion}</span>
-                    <button class="copy-btn" style="background:#222; color:#ffb700;" onclick="copyText('${item.suggestion.replace(/'/g, "\\\\'")}', this)">نسخ القيمة</button>
+                    <span>💡 التعديل المقترح: ${item.suggestion}</span>
+                    <button class="copy-btn" onclick="copyText('${item.suggestion.replace(/'/g, "\\\\'")}', this)">نسخ الكود</button>
                 </div>
             `;
             listDiv.appendChild(card);
@@ -195,8 +208,14 @@ HTML_PAGE = """
     function copyText(text, btnElement) {
         navigator.clipboard.writeText(text).then(() => {
             const originalText = btnElement.innerText;
-            btnElement.innerText = 'تم!';
-            setTimeout(() => { btnElement.innerText = originalText; }, 1500);
+            btnElement.innerText = 'تم النسخ!';
+            btnElement.style.background = 'var(--gold)';
+            btnElement.style.color = '#000';
+            setTimeout(() => { 
+                btnElement.innerText = originalText;
+                btnElement.style.background = '';
+                btnElement.style.color = '';
+            }, 1500);
         });
     }
 
@@ -212,7 +231,7 @@ HTML_PAGE = """
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'Fast_VIP_Methods.txt';
+        a.download = 'Luxury_VIP_Methods.txt';
         a.click();
     }
 
@@ -224,6 +243,7 @@ HTML_PAGE = """
         document.getElementById('progress-container').style.display = 'none';
         document.getElementById('downloadBtn').style.display = 'none';
         document.getElementById('filterInput').style.display = 'none';
+        document.getElementById('filterInput').value = '';
         allResults = [];
     }
 </script>
@@ -243,18 +263,17 @@ def process_dex_content(content, filename):
             s = chunk.decode('utf-8', errors='ignore').strip()
             lower_s = s.lower()
             
-            # فحص سريع للمفاتيح المستهدفة وتجنب الإعلانات
             if any(kw in lower_s for kw in TARGET_KEYWORDS):
                 if not any(ig in lower_s for ig in IGNORED_KEYWORDS):
                     if len(s) < 70:
                         result_obj = {
                             'file': filename,
                             'text': f"[{filename}] {s}",
-                            'suggestion': 'const/4 v0, 0x1 (إرجاع True لتفعيل الميزة)'
+                            'suggestion': 'const/4 v0, 0x1 (إرجاع True لتفعيل التراخيص)'
                         }
                         if result_obj not in matched:
                             matched.append(result_obj)
-                            if len(matched) >= 500:
+                            if len(matched) >= 600:
                                 break
         except Exception:
             continue
@@ -271,7 +290,6 @@ def process_single_file(file):
         if file.filename.endswith('.apk') or zipfile.is_zipfile(file_path):
             with zipfile.ZipFile(file_path, 'r') as z:
                 dex_files = [name for name in z.namelist() if name.endswith('.dex')]
-                # استخراج وفحص جميع ملفات الـ DEX داخل الـ APK بالتوازي الحقيقي
                 with ThreadPoolExecutor() as executor:
                     futures = {executor.submit(scan_dex_from_zip, file_path, zinfo, file.filename): zinfo for zinfo in dex_files}
                     for future in as_completed(futures):
@@ -303,11 +321,11 @@ def scan_dex_from_zip(apk_path, zinfo, filename):
 def analyze():
     files = request.files.getlist('files') or request.files.getlist('file')
     if not files or all(f.filename == '' for f in files):
-        return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات'})
+        return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات للتحليل'})
     
     all_matched_results = []
     
-    # معالجة جميع الملفات المرفوعة دفعة واحدة وبشكل متوازي لتوفير الوقت بالكامل
+    # معالجة حزم الملفات المتعددة بالتوازي المطلق لضمان أعلى أداء سرعة ممكن
     with ThreadPoolExecutor() as executor:
         futures = [executor.submit(process_single_file, file) for file in files]
         for future in as_completed(futures):
@@ -316,8 +334,9 @@ def analyze():
             except Exception:
                 pass
 
-    return jsonify({'success': True, 'methods': all_matched_results[:2000]})
+    return jsonify({'success': True, 'methods': all_matched_results[:2500]})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+ 
