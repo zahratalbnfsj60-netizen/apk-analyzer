@@ -1,8 +1,6 @@
 import os
 from flask import Flask, request, jsonify, render_template_string
-from androguard.core.bytecodes.apk import APK
-from androguard.core.bytecodes.dvm import DalvikVMFormat
-from androguard.analysis.analysis import Analysis
+from androguard.misc import AnalyzeAPK
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
@@ -41,7 +39,7 @@ HTML_PAGE = '''
 
         const response = await fetch('/analyze', { method: 'POST', body: formData });
         const result = await response.json();
-
+        
         if (result.success) {
             outputDiv.innerText = result.methods.join('\\n');
         } else {
@@ -61,21 +59,21 @@ def home():
 def analyze():
     if 'file' not in request.files:
         return jsonify({'success': False, 'error': 'لم يتم العثور على الملف'})
-
+    
     file = request.files['file']
     file_path = os.path.join(UPLOAD_FOLDER, file.filename)
     file.save(file_path)
 
     try:
-        app_obj = APK(file_path)
-        dx = Analysis(DalvikVMFormat(app_obj.get_dex()))
-
+        # استخدام الطريقة المتوافقة والمحدثة للتحليل عبر Androguard
+        a, d, dx = AnalyzeAPK(file_path)
+        
         methods_list = []
         for method in dx.get_methods():
             methods_list.append(f"Class: {method.get_class_name()} --> Method: {method.get_name()}")
             if len(methods_list) >= 500:
                 break
-
+                
         os.remove(file_path)
         return jsonify({'success': True, 'methods': methods_list})
     except Exception as e:
