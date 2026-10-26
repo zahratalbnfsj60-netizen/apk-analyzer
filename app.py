@@ -1,6 +1,7 @@
 import os
 from flask import Flask, request, jsonify, render_template_string
-from androguard.misc import AnalyzeAPK
+from androguard.core.bytecodes.dvm import DalvikVMFormat
+from androguard.core.analysis.analysis import Analysis
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
@@ -107,7 +108,7 @@ HTML_PAGE = '''
                 currentProgress += 5;
                 progressBar.style.width = currentProgress + '%';
                 progressBar.innerText = currentProgress + '%';
-                statusDiv.innerText = `جاري تحليل هيكل الملفات واستخراج دوال VIP / Pro ... (${currentProgress}%)`;
+                statusDiv.innerText = `جاري تحليل هيكل DEX واستخراج دوال VIP / Pro ... (${currentProgress}%)`;
             }
         }, 500);
 
@@ -200,7 +201,10 @@ def analyze():
             file_path = os.path.join(UPLOAD_FOLDER, file.filename)
             file.save(file_path)
             
-            a, d, dx = AnalyzeAPK(file_path)
+            # قراءة وتحليل ملف الـ DEX مباشرة بدون خطأ APK
+            with open(file_path, "rb") as f:
+                d = DalvikVMFormat(f.read())
+            dx = Analysis(d)
             
             for method in dx.get_methods():
                 class_name = method.get_class_name()
@@ -210,7 +214,7 @@ def analyze():
                 lower_sig = full_sig.lower()
                 if any(kw in lower_sig for kw in unlock_keywords):
                     matched_methods.append(full_sig)
-                    if len(matched_methods) >= 1500:
+                    if len(matched_methods) >= 2000:
                         break
                         
             if os.path.exists(file_path):
