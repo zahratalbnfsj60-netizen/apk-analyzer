@@ -6,13 +6,13 @@ app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-HTML_PAGE = '''
+HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مستخرج دوال المميزات الحقيقي (DEX Pro Analyzer)</title>
+    <title>مستخرج دوال المميزات (VIP & Pro)</title>
     <style>
         body { font-family: Tahoma, sans-serif; background-color: #121212; color: #e0e0e0; padding: 15px; margin: 0; text-align: center; }
         .container { max-width: 700px; background: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); margin: auto; }
@@ -214,7 +214,7 @@ HTML_PAGE = '''
 </script>
 </body>
 </html>
-'''
+"""
 
 @app.route('/')
 def home():
@@ -222,8 +222,57 @@ def home():
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
+    if 'files' not in request.files:
+        return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات'})
+        
     files = request.files.getlist('files')
     if not files or files[0].filename == '':
+        return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات'})
+    
+    unlock_keywords = [
+        'vip', 'pro', 'premium', 'unlock', 'lock', 'sub', 'subscription', 
+        'license', 'auth', 'purchase', 'pay', 'billing', 'inapp', 'gold', 'plus', 
+        'isvip', 'ispro', 'ispremium', 'issubscribed', 'checklicense', 'hasaccess'
+    ]
+    
+    matched_results = []
+    
+    try:
+        for file in files:
+            if file.filename == '':
+                continue
+            file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+            file.save(file_path)
+            
+            with open(file_path, "rb") as f:
+                content = f.read()
+            
+            text_chunks = re.findall(b'[\\x20-\\x7E]{5,}', content)
+            for chunk in text_chunks:
+                try:
+                    s = chunk.decode('utf-8', errors='ignore').strip()
+                    lower_s = s.lower()
+                    if any(kw in lower_s for kw in unlock_keywords):
+                        if len(s) < 100:
+                            formatted_res = f"[{file.filename}] {s}"
+                            if formatted_res not in matched_results:
+                                matched_results.append(formatted_res)
+                                if len(matched_results) >= 2000:
+                                    break
+                except Exception:
+                    continue
+                    
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                
+        return jsonify({'success': True, 'methods': matched_results})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
+s or files[0].filename == '':
         return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات'})
     
     # كلمات مفتاحية دقيقة وشاملة لدوال واشتراكات المميزات
