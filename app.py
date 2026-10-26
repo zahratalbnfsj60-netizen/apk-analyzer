@@ -8,13 +8,23 @@ app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# تجميع التعبيرات المنتظمة مسبقاً لزيادة السرعة أضعافاً مضاعفة
+STRING_PATTERN = re.compile(b'[\x20-\x7E]{4,}')
+
+TARGET_KEYWORDS = [
+    'isvip', 'ispro', 'ispremium', 'issubscribed', 'hasaccess', 
+    'premium_subscription', 'vip_status', 'pro_status', 'checklicense',
+    'is_vip', 'is_pro', 'is_premium', 'unlock_all', 'purchased'
+]
+IGNORED_KEYWORDS = ['applovin', 'firebase', 'google', 'ads', 'facebook', 'adjust', 'ironsource']
+
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>محلل دوال VIP & Pro الذهبي الحقيقي</title>
+    <title>محلل دوال VIP & Pro الخارق والسرع</title>
     <style>
         body { font-family: Tahoma, sans-serif; background-color: #121212; color: #e0e0e0; padding: 15px; margin: 0; text-align: center; }
         .container { max-width: 750px; background: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); margin: auto; }
@@ -48,15 +58,15 @@ HTML_PAGE = """
 </head>
 <body>
 <div class="container">
-    <h2>محلل دوال VIP & Pro الذهبي الحقيقي</h2>
-    <p>اختر ملفات الـ DEX أو APK لاستخراج دوال فتح المميزات الحقيقية بدقة:</p>
+    <h2>محلل دوال VIP & Pro الخارق والسرع</h2>
+    <p>اختر ملفات الـ DEX أو APK للفحص الفائق والآني:</p>
     
     <div class="file-box">
         <input type="file" id="dexFiles" multiple>
     </div>
 
     <div class="btn-group">
-        <button onclick="uploadAndAnalyze()">بدء الفحص الحقيقي</button>
+        <button onclick="uploadAndAnalyze()">بدء الفحص الخارق</button>
         <button class="btn-success" id="downloadBtn" onclick="downloadTxt()" style="display:none;">تحميل TXT</button>
         <button class="btn-danger" onclick="clearAll()">حذف وتفريغ</button>
     </div>
@@ -96,7 +106,7 @@ HTML_PAGE = """
         progressContainer.style.display = 'block';
         progressBar.style.width = '0%';
         progressBar.innerText = '0%';
-        statusDiv.innerText = 'جاري رفع الملفات إلى السيرفر الخارجي...';
+        statusDiv.innerText = 'جاري رفع الملفات...';
         listDiv.style.display = 'none';
         listDiv.innerHTML = '';
         downloadBtn.style.display = 'none';
@@ -107,22 +117,22 @@ HTML_PAGE = """
 
         xhr.upload.onprogress = function (e) {
             if (e.lengthComputable) {
-                const percentComplete = Math.round((e.loaded / e.total) * 60);
+                const percentComplete = Math.round((e.loaded / e.total) * 50);
                 progressBar.style.width = percentComplete + '%';
                 progressBar.innerText = percentComplete + '%';
-                statusDiv.innerText = `جاري الرفع الفعلي... (${percentComplete}%)`;
+                statusDiv.innerText = `جاري الرفع... (${percentComplete}%)`;
             }
         };
 
-        let currentProgress = 60;
+        let currentProgress = 50;
         const interval = setInterval(() => {
             if (currentProgress < 95) {
-                currentProgress += 5;
+                currentProgress += 10;
                 progressBar.style.width = currentProgress + '%';
                 progressBar.innerText = currentProgress + '%';
-                statusDiv.innerText = `جاري استصفاء دوال VIP & Pro الحقيقية ... (${currentProgress}%)`;
+                statusDiv.innerText = `جاري الفحص الخارق بأعلى سرعة... (${currentProgress}%)`;
             }
-        }, 300);
+        }, 150);
 
         xhr.onload = function () {
             clearInterval(interval);
@@ -134,7 +144,7 @@ HTML_PAGE = """
                     
                     if (result.success) {
                         allResults = result.methods;
-                        statusDiv.innerText = `تم الانتهاء! العثور على ${allResults.length} دالة مميزات حقيقية.`;
+                        statusDiv.innerText = `تم الانتهاء بنجاح! العثور على ${allResults.length} دالة.`;
                         if (allResults.length > 0) {
                             renderMethods(allResults);
                             downloadBtn.style.display = 'inline-block';
@@ -152,7 +162,7 @@ HTML_PAGE = """
                     statusDiv.innerText = 'خطأ في معالجة الاستجابة.';
                 }
             } else {
-                statusDiv.innerText = 'فشل الاتصال بالسيرفر الخارجي.';
+                statusDiv.innerText = 'فشل الاتصال بالسيرفر.';
             }
         };
 
@@ -187,13 +197,7 @@ HTML_PAGE = """
         navigator.clipboard.writeText(text).then(() => {
             const originalText = btnElement.innerText;
             btnElement.innerText = 'تم!';
-            btnElement.style.background = '#ffb700';
-            btnElement.style.color = '#000';
-            setTimeout(() => {
-                btnElement.innerText = originalText;
-                btnElement.style.background = '';
-                btnElement.style.color = '';
-            }, 1500);
+            setTimeout(() => { btnElement.innerText = originalText; }, 1500);
         });
     }
 
@@ -209,10 +213,8 @@ HTML_PAGE = """
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'Real_Gold_VIP_Methods.txt';
-        document.body.appendChild(a);
+        a.download = 'Fast_VIP_Methods.txt';
         a.click();
-        document.body.removeChild(a);
     }
 
     function clearAll() {
@@ -223,7 +225,6 @@ HTML_PAGE = """
         document.getElementById('progress-container').style.display = 'none';
         document.getElementById('downloadBtn').style.display = 'none';
         document.getElementById('filterInput').style.display = 'none';
-        document.getElementById('filterInput').value = '';
         allResults = [];
     }
 </script>
@@ -235,83 +236,86 @@ HTML_PAGE = """
 def home():
     return render_template_string(HTML_PAGE)
 
-def process_dex_content(content, filename, matched_results):
-    target_keywords = [
-        'isvip', 'ispro', 'ispremium', 'issubscribed', 'hasaccess', 
-        'premium_subscription', 'vip_status', 'pro_status', 'checklicense',
-        'is_vip', 'is_pro', 'is_premium', 'unlock_all', 'purchased'
-    ]
-    ignored_keywords = ['applovin', 'firebase', 'google', 'ads', 'facebook', 'adjust', 'ironsource']
-    
-    text_chunks = re.findall(b'[\x20-\x7E]{4,}', content)
+def process_dex_content(content, filename):
+    matched = []
+    # استخدام التعبير المجمع مسبقاً STRING_PATTERN للسرعة الفائقة
+    text_chunks = STRING_PATTERN.findall(content)
     for chunk in text_chunks:
         try:
             s = chunk.decode('utf-8', errors='ignore').strip()
             lower_s = s.lower()
             
-            if any(kw in lower_s for kw in target_keywords):
-                if not any(ig in lower_s for ig in ignored_keywords):
+            if any(kw in lower_s for kw in TARGET_KEYWORDS):
+                if not any(ig in lower_s for ig in IGNORED_KEYWORDS):
                     if len(s) < 70:
-                        suggestion = 'const/4 v0, 0x1 (إرجاع True لتفعيل الميزة)'
                         result_obj = {
                             'file': filename,
                             'text': f"[{filename}] {s}",
-                            'suggestion': suggestion
+                            'suggestion': 'const/4 v0, 0x1 (إرجاع True لتفعيل الميزة)'
                         }
-                        
-                        if result_obj not in matched_results:
-                            matched_results.append(result_obj)
-                            if len(matched_results) >= 2000:
-                                return True
+                        if result_obj not in matched:
+                            matched.append(result_obj)
+                            if len(matched) >= 1000:
+                                break
         except Exception:
             continue
-    return False
+    return matched
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    files = []
-    if 'files' in request.files:
-        files = request.files.getlist('files')
-    elif 'file' in request.files:
-        files = request.files.getlist('file')
-        
+    files = request.files.getlist('files') or request.files.getlist('file')
     if not files or all(f.filename == '' for f in files):
         return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات'})
     
-    matched_results = []
+    all_matched_results = []
     
-    try:
-        for file in files:
-            if not file or file.filename == '':
-                continue
-            file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-            file.save(file_path)
-            
-            # فحص ما إذا كان الملف هو APK (ZIP) لاستخراج ملفات الـ DEX بداخله
+    def process_single_file(file):
+        if not file or file.filename == '':
+            return []
+        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+        file.save(file_path)
+        file_results = []
+        
+        try:
             if file.filename.endswith('.apk') or zipfile.is_zipfile(file_path):
-                try:
-                    with zipfile.ZipFile(file_path, 'r') as z:
-                        for zinfo in z.namelist():
-                            if zinfo.endswith('.dex'):
-                                with z.open(zinfo) as dex_file:
-                                    content = dex_file.read()
-                                    if process_dex_content(content, f"{file.filename} -> {zinfo}", matched_results):
-                                        break
-                except Exception:
-                    pass
+                with zipfile.ZipFile(file_path, 'r') as z:
+                    dex_files = [name for name in z.namelist() if name.endswith('.dex')]
+                    # فحص ملفات الـ DEX بالتوازي داخل ملف الـ APK الواحد
+                    with ThreadPoolExecutor() as executor:
+                        futures = []
+                        for zinfo in dex_files:
+                            futures.append(executor.submit(scan_dex_from_zip, file_path, zinfo, file.filename))
+                        for future in futures:
+                            file_results.extend(future.result())
             else:
-                # قراءة ملف DEX مباشر
                 with open(file_path, "rb") as f:
                     content = f.read()
-                process_dex_content(content, file.filename, matched_results)
-            
+                file_results.extend(process_dex_content(content, file.filename))
+        except Exception:
+            pass
+        finally:
             if os.path.exists(file_path):
                 os.remove(file_path)
-                
-        return jsonify({'success': True, 'methods': matched_results})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        return file_results
+
+    def scan_dex_from_zip(apk_path, zinfo, filename):
+        try:
+            with zipfile.ZipFile(apk_path, 'r') as z:
+                with z.open(zinfo) as dex_file:
+                    content = dex_file.read()
+                    return process_dex_content(content, f"{filename} -> {zinfo}")
+        except Exception:
+            return []
+
+    # استخدام ThreadPoolExecutor لمعالجة عدة ملفات مرفوعة في نفس الوقت
+    with ThreadPoolExecutor() as executor:
+        results = list(executor.map(process_single_file, files))
+        for res in results:
+            all_matched_results.extend(res)
+
+    return jsonify({'success': True, 'methods': all_matched_results[:2000]})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+ 
