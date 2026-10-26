@@ -1,7 +1,7 @@
 import os
 import sys
 import re
-from concurrent.futures import ThreadPoolExecutor, asChildThread if hasattr(sys, 'settrace') else ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 import threading
 
 # إعداد الألوان لعرض النتائج بشكل احترافي
@@ -22,7 +22,7 @@ TARGET_KEYWORDS = [
     "sub_status", "is_pro", "is_vip", "purchased", "not_set"
 ]
 
-# الكلمات المستبعدة تماماً (لتجاهل إعلانات Unity, AppLovin, Firebase, وغيرها)
+# الكلمات المستبعدة تماماً (لتجاهل إعلانات Unity, AppLovin, Firebase، وغيرها)
 EXCLUDE_KEYWORDS = [
     "unity3d", "applovin", "firebase", "ads", "analytics", 
     "protobuf", "facebook", "adjust", "google/android/gms/ads",
@@ -58,7 +58,7 @@ def analyze_smali_file(file_path):
                 with print_lock:
                     print(f"\n{Colors.GREEN}[+] وجد هدف محتمل في الملف:{Colors.RESET} {file_path}")
                     print(f"{Colors.YELLOW}    [الدالة]: {Colors.BOLD}{method_name}{Colors.RESET}")
-                    print(f"{Colors.CYAN    [الكلمات المطابقة]: {', '.join(matched_keywords)}{Colors.RESET}")
+                    print(f"{Colors.CYAN}    [الكلمات المطابقة]: {', '.join(matched_keywords)}{Colors.RESET}")
                     print(f"{Colors.HEADER}--------------------------------------------------{Colors.RESET}")
                     # طباعة أسطر الدالة بشكل مختصر وواضح
                     lines = method.strip().split('\n')
@@ -81,13 +81,13 @@ def scan_directory(root_dir):
     print(f"{Colors.GREEN}[+] تم العثور على {len(smali_files)} ملف. بدء عملية الفحص الذكي...{Colors.RESET}\n")
     
     # استخدام ThreadPoolExecutor للبحث الفائق السرعة عبر خيوط متعددة
-    with ThreadPoolExecutor(max_workers=os.cpu_count() * 2) as executor:
+    cpu_cores = os.cpu_count() or 2
+    with ThreadPoolExecutor(max_workers=cpu_cores * 2) as executor:
         executor.map(analyze_smali_file, smali_files)
         
     print(f"\n{Colors.GREEN}[✔] انتهى الفحص بنجاح!{Colors.RESET}")
 
 if __name__ == "__main__":
-    # ضع مسار مجلد فك الضغط (مثل مجلد smali الرئيسي للتطبيق المستخرج)
     target_directory = input(f"{Colors.CYAN}أدخل مسار مجلد الـ smali للبدء: {Colors.RESET}").strip()
     if os.path.exists(target_directory):
         scan_directory(target_directory)
