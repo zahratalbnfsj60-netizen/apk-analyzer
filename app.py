@@ -18,10 +18,8 @@ HTML_PAGE = '''
         .container { max-width: 700px; background: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); margin: auto; }
         h2 { color: #4da6ff; font-size: 1.3rem; margin-bottom: 10px; }
         p { color: #aaa; font-size: 0.85rem; }
-        
         .file-box { border: 2px dashed #444; padding: 15px; border-radius: 8px; margin: 15px 0; background: #252525; }
         input[type="file"] { color: #fff; width: 100%; font-size: 0.9rem; }
-        
         .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
         button { background: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; flex: 1; font-size: 0.9rem; min-width: 120px; }
         button:hover { background: #0056b3; }
@@ -29,14 +27,10 @@ HTML_PAGE = '''
         button.btn-danger:hover { background: #a71d2a; }
         button.btn-success { background: #28a745; }
         button.btn-success:hover { background: #1e7e34; }
-
         #progress-container { width: 100%; background: #333; border-radius: 6px; margin-top: 15px; overflow: hidden; display: none; }
         #progress-bar { width: 0%; height: 20px; background: #00ff66; text-align: center; color: #000; font-weight: bold; font-size: 0.8rem; transition: width 0.3s ease; }
-        
         #status { margin-top: 8px; color: #ffca28; font-size: 0.85rem; }
-        
         .search-box { width: 100%; padding: 10px; margin-top: 15px; background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 6px; box-sizing: border-box; display: none; font-size: 0.9rem; }
-        
         #output { text-align: left; background: #000; color: #00ff66; padding: 12px; border-radius: 6px; margin-top: 10px; max-height: 300px; overflow-y: auto; direction: ltr; font-family: monospace; white-space: pre-wrap; font-size: 0.8rem; }
     </style>
 </head>
@@ -206,7 +200,6 @@ def analyze():
             file_path = os.path.join(UPLOAD_FOLDER, file.filename)
             file.save(file_path)
             
-            # استخدام AnalyzeAPK العام والآمن تماماً لتعارضات المسارات
             a, d, dx = AnalyzeAPK(file_path)
             
             for method in dx.get_methods():
@@ -230,4 +223,3 @@ def analyze():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
- app.run(host='0.0.0.0', port=port)
