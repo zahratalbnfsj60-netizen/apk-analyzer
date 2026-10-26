@@ -12,7 +12,7 @@ HTML_PAGE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>محلل دوال VIP & Pro الذهبي</title>
+    <title>محلل دوال VIP & Pro الذهبي الحقيقي</title>
     <style>
         body { font-family: Tahoma, sans-serif; background-color: #121212; color: #e0e0e0; padding: 15px; margin: 0; text-align: center; }
         .container { max-width: 750px; background: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); margin: auto; }
@@ -46,15 +46,15 @@ HTML_PAGE = """
 </head>
 <body>
 <div class="container">
-    <h2>محلل دوال VIP & Pro الذهبي السريع</h2>
-    <p>اختر ملفات الـ DEX أو APK الفحص الحقيقي واستخراج دوال فتح المميزات:</p>
+    <h2>محلل دوال VIP & Pro الذهبي الحقيقي</h2>
+    <p>اختر ملفات الـ DEX أو APK لاستخراج دوال فتح المميزات الحقيقية بدقة:</p>
     
     <div class="file-box">
         <input type="file" id="dexFiles" multiple>
     </div>
 
     <div class="btn-group">
-        <button onclick="uploadAndAnalyze()">بدء الفحص والتحليل</button>
+        <button onclick="uploadAndAnalyze()">بدء الفحص الحقيقي</button>
         <button class="btn-success" id="downloadBtn" onclick="downloadTxt()" style="display:none;">تحميل TXT</button>
         <button class="btn-danger" onclick="clearAll()">حذف وتفريغ</button>
     </div>
@@ -103,7 +103,6 @@ HTML_PAGE = """
         const xhr = new XMLHttpRequest();
         xhr.open('POST', '/analyze', true);
 
-        // نسبة مئوية حقيقية أثناء الرفع
         xhr.upload.onprogress = function (e) {
             if (e.lengthComputable) {
                 const percentComplete = Math.round((e.loaded / e.total) * 60);
@@ -113,14 +112,13 @@ HTML_PAGE = """
             }
         };
 
-        // محاكاة نسبة التحليل المعالجة بالسيرفر
         let currentProgress = 60;
         const interval = setInterval(() => {
             if (currentProgress < 95) {
                 currentProgress += 5;
                 progressBar.style.width = currentProgress + '%';
                 progressBar.innerText = currentProgress + '%';
-                statusDiv.innerText = `جاري استخراج وتحليل دوال VIP & Pro ... (${currentProgress}%)`;
+                statusDiv.innerText = `جاري استصفاء دوال VIP & Pro الحقيقية ... (${currentProgress}%)`;
             }
         }, 300);
 
@@ -134,7 +132,7 @@ HTML_PAGE = """
                     
                     if (result.success) {
                         allResults = result.methods;
-                        statusDiv.innerText = `تم الانتهاء بنجاح! العثور على ${allResults.length} دالة مميزات ذهبية.`;
+                        statusDiv.innerText = `تم الانتهاء! العثور على ${allResults.length} دالة مميزات حقيقية.`;
                         if (allResults.length > 0) {
                             renderMethods(allResults);
                             downloadBtn.style.display = 'inline-block';
@@ -170,7 +168,7 @@ HTML_PAGE = """
             
             card.innerHTML = `
                 <div class="card-header">
-                    <span class="badge">💎 دالة مميزات ذهبية</span>
+                    <span class="badge">💎 دالة مميزات حقيقية</span>
                     <button class="copy-btn" onclick="copyText('${item.text.replace(/'/g, "\\\\'")}', this)">نسخ النص</button>
                 </div>
                 <div class="item-text">${item.text}</div>
@@ -209,14 +207,14 @@ HTML_PAGE = """
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'Gold_VIP_Methods.txt';
+        a.download = 'Real_Gold_VIP_Methods.txt';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
     }
 
     function clearAll() {
-        document.getElementById('dexFiles').value = '';
+        document.getElementById('dexFiles').value, document.getElementById('dexFiles').value = '';
         document.getElementById('methods-list').style.display = 'none';
         document.getElementById('methods-list').innerHTML = '';
         document.getElementById('status').innerText = '';
@@ -246,8 +244,16 @@ def analyze():
     if not files or all(f.filename == '' for f in files):
         return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات'})
     
-    # الكلمات المفتاحية الحصرية فقط لدوال فتح المميزات والاشتراكات
-    vip_keywords = ['vip', 'pro', 'premium', 'isvip', 'ispro', 'ispremium', 'issubscribed']
+    # قائمة الكلمات المفتاحية الدقيقة لفتح المميزات وتجنب الإعلانات العشوائية
+    target_keywords = [
+        'isvip', 'ispro', 'ispremium', 'issubscribed', 'hasaccess', 
+        'premium_subscription', 'vip_status', 'pro_status', 'checklicense',
+        'is_vip', 'is_pro', 'is_premium', 'unlock_all', 'purchased'
+    ]
+    
+    # الكلمات المستبعدة تماماً (لتجنب شبكات الإعلانات مثل AppLovin أو Firebase)
+    ignored_keywords = ['applovin', 'firebase', 'google', 'ads', 'facebook', 'adjust', 'ironsource']
+    
     matched_results = []
     
     try:
@@ -260,27 +266,28 @@ def analyze():
             with open(file_path, "rb") as f:
                 content = f.read()
             
-            # قراءة النصوص والرموز البرمجية من الملف الثنائي
             text_chunks = re.findall(b'[\\x20-\\x7E]{4,}', content)
             for chunk in text_chunks:
                 try:
                     s = chunk.decode('utf-8', errors='ignore').strip()
                     lower_s = s.lower()
                     
-                    if any(kw == lower_s or kw in lower_s for kw in vip_keywords):
-                        if len(s) < 80:
-                            suggestion = 'const/4 v0, 0x1 (إرجاع True لفتح الميزة)'
-                            
-                            result_obj = {
-                                'file': file.filename,
-                                'text': f"[{file.filename}] {s}",
-                                'suggestion': suggestion
-                            }
-                            
-                            if result_obj not in matched_results:
-                                matched_results.append(result_obj)
-                                if len(matched_results) >= 2000:
-                                    break
+                    # التحقق من أن النص يحتوي على كلمات الـ VIP ولا ينتمي لشركات الإعلانات المستبعدة
+                    if any(kw in lower_s for kw in target_keywords):
+                        if not any(ig in lower_s for ig in ignored_keywords):
+                            if len(s) < 70:
+                                suggestion = 'const/4 v0, 0x1 (إرجاع True لتفعيل الميزة)'
+                                
+                                result_obj = {
+                                    'file': file.filename,
+                                    'text': f"[{file.filename}] {s}",
+                                    'suggestion': suggestion
+                                }
+                                
+                                if result_obj not in matched_results:
+                                    matched_results.append(result_obj)
+                                    if len(matched_results) >= 2000:
+                                        break
                 except Exception:
                     continue
                     
