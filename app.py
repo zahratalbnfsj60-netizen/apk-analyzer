@@ -1,16 +1,14 @@
 import os
 import re
 import json
-import zipfile
 import sqlite3
-import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, request, jsonify, render_template_string, send_file
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'outputs'
-DB_PATH = 'reverse_ultimate.db'
+DB_PATH = 'dex_reverse_pro.db'
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
@@ -22,8 +20,6 @@ def init_db():
         CREATE TABLE IF NOT EXISTS history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             filename TEXT,
-            app_name TEXT,
-            package_name TEXT,
             total_results INTEGER,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
@@ -35,25 +31,25 @@ init_db()
 
 FEATURE_CATEGORIES = {
     'purchase': {
-        'name': 'دوال الشراء المدمج (In-App Billing / Frida Hook)',
+        'name': 'دوال الشراء والدفع المدمج (In-App Billing)',
         'color': '#ff4757',
         'badge_bg': 'rgba(255, 71, 87, 0.15)',
         'keywords': ['purchase', 'billing', 'playstore', 'checkout', 'payment', 'order_id', 'sku', 'consume']
     },
     'vip': {
-        'name': 'الاشتراكات و الـ VIP & Pro',
+        'name': 'الاشتراكات و الـ VIP & Pro Status',
         'color': '#f0b429',
         'badge_bg': 'rgba(240, 180, 41, 0.15)',
         'keywords': ['isvip', 'ispro', 'ispremium', 'issubscribed', 'vip_status', 'pro_status', 'subscription']
     },
     'bypass': {
-        'name': 'تخطي التراخيص والقفز (Conditional Bypass)',
+        'name': 'تخطي التراخيص والقفز المنطقي (Bypass)',
         'color': '#2ed573',
         'badge_bg': 'rgba(46, 213, 115, 0.15)',
         'keywords': ['checklicense', 'hasaccess', 'unlock_all', 'license_key', 'is_verified', 'crack']
     },
     'security': {
-        'name': 'الحماية والتحقق من التوقيع (Tamper & Root)',
+        'name': 'فحص الحماية والروت (Root & Anti-Cheat)',
         'color': '#a855f7',
         'badge_bg': 'rgba(168, 85, 247, 0.15)',
         'keywords': ['root', 'debugger', 'emulator', 'su_binary', 'integrity', 'signature_check']
@@ -68,74 +64,75 @@ MOBILE_HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DEX Reverse Ultimate Pro | منصة الهندسة العكسية الفائقة</title>
+    <title>DEX Mobile Reverse Pro | الأداة الخارقة</title>
     <style>
         :root {
-            --bg-deep: #030508;
-            --card-bg: #0b101d;
+            --bg-deep: #030712;
+            --card-bg: #0f172a;
             --border-color: #1e293b;
             --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.3);
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: system-ui, -apple-system, sans-serif; background-color: var(--bg-deep); color: var(--text-main); margin: 0; padding: 12px; }
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: var(--bg-deep); color: var(--text-main); margin: 0; padding: 14px; }
         
-        .app-header { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 14px; border-radius: 14px; border: 1px solid var(--border-color); margin-bottom: 12px; }
-        .app-title h1 { font-size: 1.1rem; margin: 0; color: #60a5fa; font-weight: 800; }
-        .app-title p { font-size: 0.7rem; margin: 2px 0 0; color: var(--text-muted); }
+        .app-header { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 14px 16px; border-radius: 16px; border: 1px solid var(--border-color); margin-bottom: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+        .app-title h1 { font-size: 1.15rem; margin: 0; color: #60a5fa; font-weight: 800; letter-spacing: -0.5px; }
+        .app-title p { font-size: 0.72rem; margin: 3px 0 0; color: var(--text-muted); }
         .nav-btns { display: flex; gap: 8px; }
-        .icon-btn { background: #1e293b; border: none; color: var(--text-main); width: 36px; height: 36px; border-radius: 10px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .icon-btn { background: #1e293b; border: 1px solid var(--border-color); color: var(--text-main); width: 38px; height: 38px; border-radius: 11px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .icon-btn:active { transform: scale(0.92); }
 
-        .upload-card { background: var(--card-bg); border: 2px dashed #334155; padding: 18px; border-radius: 14px; text-align: center; margin-bottom: 12px; }
+        .upload-card { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); border: 2px dashed #4f46e5; padding: 22px 15px; border-radius: 16px; text-align: center; margin-bottom: 14px; cursor: pointer; transition: 0.3s; }
+        .upload-card:active { border-color: #6366f1; background: #1e1b4b; }
         input[type="file"] { display: none; }
-        .upload-label { display: block; cursor: pointer; color: var(--text-main); font-size: 0.85rem; font-weight: 600; }
-        .upload-label span { display: block; font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; }
+        .upload-label { display: block; cursor: pointer; color: var(--text-main); font-size: 0.9rem; font-weight: 700; }
+        .upload-label span { display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; }
 
-        .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-        button.action-btn { background: var(--accent); color: white; border: none; padding: 11px; border-radius: 10px; font-weight: bold; font-size: 0.85rem; cursor: pointer; width: 100%; box-shadow: 0 4px 12px rgba(59,130,246,0.25); }
+        .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        button.action-btn { background: var(--accent); color: white; border: none; padding: 13px; border-radius: 12px; font-weight: bold; font-size: 0.9rem; cursor: pointer; width: 100%; box-shadow: 0 4px 15px var(--accent-glow); transition: 0.2s; }
+        button.action-btn:active { transform: scale(0.96); }
         button.action-btn.secondary { background: #1e293b; color: var(--text-main); box-shadow: none; border: 1px solid var(--border-color); }
-        button.action-btn.success { background: #22c55e; }
 
-        .app-info-card { background: var(--card-bg); padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 12px; display: none; font-size: 0.8rem; }
-        .app-info-card b { color: #60a5fa; }
-
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 100; align-items: center; justify-content: center; padding: 15px; }
-        .modal-content { background: var(--card-bg); width: 100%; max-width: 380px; padding: 18px; border-radius: 16px; border: 1px solid var(--border-color); max-height: 85vh; overflow-y: auto; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .modal-header h3 { margin: 0; font-size: 0.95rem; color: var(--text-main); }
-        .close-modal { background: none; border: none; color: var(--text-muted); font-size: 1.1rem; cursor: pointer; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(8px); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
+        .modal-content { background: var(--card-bg); width: 100%; max-width: 400px; padding: 20px; border-radius: 20px; border: 1px solid var(--border-color); max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .modal-header h3 { margin: 0; font-size: 1rem; color: var(--text-main); }
+        .close-modal { background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; }
         
-        .setting-item { margin-bottom: 12px; }
-        .setting-item label { display: block; font-size: 0.8rem; margin-bottom: 4px; color: var(--text-muted); }
-        .setting-item select { width: 100%; background: #030508; border: 1px solid var(--border-color); color: var(--text-main); padding: 9px; border-radius: 8px; font-size: 0.85rem; outline: none; }
+        .setting-item { margin-bottom: 14px; }
+        .setting-item label { display: block; font-size: 0.82rem; margin-bottom: 6px; color: var(--text-muted); }
+        .setting-item select { width: 100%; background: #030712; border: 1px solid var(--border-color); color: var(--text-main); padding: 10px; border-radius: 10px; font-size: 0.88rem; outline: none; }
 
-        #progress-box { background: var(--card-bg); padding: 12px; border-radius: 12px; margin-bottom: 12px; display: none; border: 1px solid var(--border-color); text-align: center; }
-        .progress-bar-container { background: #1e293b; border-radius: 6px; height: 8px; overflow: hidden; margin-top: 8px; }
+        #progress-box { background: var(--card-bg); padding: 14px; border-radius: 14px; margin-bottom: 14px; display: none; border: 1px solid var(--border-color); text-align: center; }
+        .progress-bar-container { background: #1e293b; border-radius: 8px; height: 8px; overflow: hidden; margin-top: 10px; }
         .progress-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); transition: width 0.3s; }
-        #status-text { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; }
+        #status-text { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; }
 
-        .download-box { background: rgba(34, 197, 94, 0.1); border: 1px solid #22c55e; padding: 12px; border-radius: 12px; text-align: center; margin-bottom: 12px; display: none; }
-        .download-box a { background: #22c55e; color: #fff; padding: 8px 15px; border-radius: 8px; text-decoration: none; font-size: 0.8rem; font-weight: bold; display: inline-block; margin: 4px; }
+        .download-box { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); padding: 14px; border-radius: 14px; text-align: center; margin-bottom: 14px; display: none; }
+        .download-box a { background: #22c55e; color: #fff; padding: 9px 16px; border-radius: 10px; text-decoration: none; font-size: 0.82rem; font-weight: bold; display: inline-block; margin: 4px; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25); }
 
-        .filter-container { display: flex; gap: 6px; margin-bottom: 12px; display: none; }
-        .search-filter { flex: 1; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 10px; border-radius: 10px; font-size: 0.85rem; outline: none; }
+        .filter-container { display: flex; gap: 8px; margin-bottom: 14px; display: none; }
+        .search-filter { flex: 1; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 11px; border-radius: 12px; font-size: 0.88rem; outline: none; }
 
         #results-container { display: none; }
-        .result-card { background: var(--card-bg); padding: 10px; border-radius: 10px; margin-bottom: 8px; border: 1px solid var(--border-color); font-family: monospace; font-size: 0.75rem; direction: ltr; text-align: left; }
-        .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; direction: rtl; }
-        .cat-badge { padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; }
-        .code-text { color: #60a5fa; word-break: break-all; font-weight: bold; margin-bottom: 6px; }
-        .mod-suggestion { background: #030508; padding: 5px 7px; border-radius: 5px; color: #2ed573; font-size: 0.7rem; border: 1px dashed rgba(46,213,115,0.3); display: flex; justify-content: space-between; align-items: center; }
-        .copy-btn { background: #1e293b; border: 1px solid var(--border-color); color: var(--text-main); padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; cursor: pointer; }
+        .result-card { background: var(--card-bg); padding: 12px; border-radius: 14px; margin-bottom: 10px; border: 1px solid var(--border-color); font-family: monospace; font-size: 0.78rem; direction: ltr; text-align: left; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; direction: rtl; }
+        .cat-badge { padding: 3px 8px; border-radius: 6px; font-size: 0.68rem; font-weight: bold; }
+        .code-text { color: #60a5fa; word-break: break-all; font-weight: bold; margin-bottom: 8px; }
+        .mod-suggestion { background: #030712; padding: 7px 9px; border-radius: 8px; color: #2ed573; font-size: 0.72rem; border: 1px dashed rgba(46,213,115,0.3); display: flex; justify-content: space-between; align-items: center; }
+        .copy-btn { background: #1e293b; border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 8px; border-radius: 6px; font-size: 0.68rem; cursor: pointer; transition: 0.2s; }
+        .copy-btn:active { background: #3b82f6; }
     </style>
 </head>
 <body>
 
     <div class="app-header">
         <div class="app-title">
-            <h1>DEX Reverse Ultimate</h1>
-            <p>الباتش التلقائي وتوليد سكربتات Frida</p>
+            <h1>DEX Mobile Pro</h1>
+            <p>محلل ملفات الـ DEX الهندسي المتطور</p>
         </div>
         <div class="nav-btns">
             <button class="icon-btn" onclick="toggleModal('historyModal', true)" title="السجل">📜</button>
@@ -143,32 +140,27 @@ MOBILE_HTML_TEMPLATE = """
         </div>
     </div>
 
-    <div class="upload-card" onclick="document.getElementById('fileInput').click()">
+    <div class="upload-card" onclick="document.getElementById('dexFile').click()">
         <label class="upload-label">
-            📁 اضغط لاختيار ملف APK أو DEX للفحص الشامل
-            <span>فك الشفرات، توليد Frida Hook، وباتش التوقيع التلقائي</span>
+            📁 اضغط لاختيار ملفات .dex مباشرة
+            <span>تحليل فائق السرعة، باتش برمجى، وتوليد Frida Hook</span>
         </label>
-        <input type="file" id="fileInput" multiple accept=".dex,.apk,.zip">
-    </div>
-
-    <div class="app-info-card" id="appInfoCard">
-        <div>اسم التطبيق: <b id="appNameTxt">-</b></div>
-        <div>اسم الحزمة: <b id="pkgNameTxt">-</b></div>
+        <input type="file" id="dexFile" multiple accept=".dex">
     </div>
 
     <div class="download-box" id="downloadBox">
-        <div style="font-size: 0.8rem; color: #22c55e; font-weight: bold; margin-bottom: 8px;">✨ تم إنجاز الباتش وتوقيع التطبيق بنجاح!</div>
+        <div style="font-size: 0.82rem; color: #22c55e; font-weight: bold; margin-bottom: 8px;">✨ تم إنجاز الفحص والباتش وتوليد السكربت بنجاح!</div>
         <a id="dlPatchedDex" href="#">تحميل DEX المعدل</a>
         <a id="dlFridaScript" href="#" style="background:#3b82f6;">تحميل سكربت Frida</a>
     </div>
 
     <div class="actions-grid">
-        <button class="action-btn" onclick="startAnalysis()">بدء الفحص والباتش الفوري</button>
+        <button class="action-btn" onclick="startAnalysis()">بدء الفحص والباتش</button>
         <button class="action-btn secondary" id="downloadBtn" onclick="downloadJson()" style="display:none;">تصدير JSON</button>
     </div>
 
     <div id="progress-box">
-        <div id="status-text">جاري تحليل شروط السمالي وبناء سكريبتات الفك...</div>
+        <div id="status-text">جاري فحص بايت كود الـ DEX وبناء التعديلات...</div>
         <div class="progress-bar-container">
             <div class="progress-bar" id="progressBar"></div>
         </div>
@@ -191,14 +183,14 @@ MOBILE_HTML_TEMPLATE = """
                 <label>نوع التعديل البرمجي (Smali Patcher)</label>
                 <select id="patchMode">
                     <option value="return_true" selected>إرجاع قيمة True (const/4 v0, 0x1)</option>
-                    <option value="invert_jump">عكس القفزة الشرطية (Invert if-eqz -> if-nez)</option>
-                    <option value="nop_check">تجاهل فحص الحماية (NOP instruction)</option>
+                    <option value="invert_jump">عكس القفزة الشرطية (Invert jump)</option>
+                    <option value="nop_check">تجاهل فحص الحماية (NOP)</option>
                 </select>
             </div>
             <div class="setting-item">
                 <label>توليد سكريبت Frida تلقائياً</label>
                 <select id="genFrida">
-                    <option value="yes" selected>مفعل (توليد سكربت Hooking للب Billing)</option>
+                    <option value="yes" selected>مفعل (توليد سكربت الحماية والـ Billing)</option>
                     <option value="no">معطل</option>
                 </select>
             </div>
@@ -209,7 +201,7 @@ MOBILE_HTML_TEMPLATE = """
     <div class="modal" id="historyModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>سجل العمليات السابقة</h3>
+                <h3>سجل عمليات الفحص</h3>
                 <button class="close-modal" onclick="toggleModal('historyModal', false)">✕</button>
             </div>
             <div id="historyList">جاري التحميل...</div>
@@ -225,9 +217,9 @@ MOBILE_HTML_TEMPLATE = """
     }
 
     function startAnalysis() {
-        const fileInput = document.getElementById('fileInput');
+        const fileInput = document.getElementById('dexFile');
         if (!fileInput.files || fileInput.files.length === 0) {
-            alert('الرجاء اختيار ملف واحد على الأقل!');
+            alert('الرجاء اختيار ملف DEX واحد على الأقل!');
             return;
         }
 
@@ -244,16 +236,14 @@ MOBILE_HTML_TEMPLATE = """
         const resultsContainer = document.getElementById('results-container');
         const downloadBtn = document.getElementById('downloadBtn');
         const filterContainer = document.getElementById('filterContainer');
-        const appInfoCard = document.getElementById('appInfoCard');
         const downloadBox = document.getElementById('downloadBox');
 
         progressBox.style.display = 'block';
-        progressBar.style.width = '30%';
-        statusText.innerText = 'جاري تحليل الدوال وشروط البايت كود...';
+        progressBar.style.width = '35%';
+        statusText.innerText = 'جاري تحليل الملفات وقراءة البايت كود...';
         resultsContainer.style.display = 'none';
         downloadBtn.style.display = 'none';
         filterContainer.style.display = 'none';
-        appInfoCard.style.display = 'none';
         downloadBox.style.display = 'none';
 
         const xhr = new XMLHttpRequest();
@@ -265,11 +255,6 @@ MOBILE_HTML_TEMPLATE = """
                 progressBar.style.width = '100%';
                 if (res.success) {
                     globalResults = res.results;
-                    if(res.app_info) {
-                        document.getElementById('appNameTxt').innerText = res.app_info.name;
-                        document.getElementById('pkgNameTxt').innerText = res.app_info.package;
-                        appInfoCard.style.display = 'block';
-                    }
                     if(res.patched_file) {
                         document.getElementById('dlPatchedDex').href = '/download/' + res.patched_file;
                         downloadBox.style.display = 'block';
@@ -278,7 +263,7 @@ MOBILE_HTML_TEMPLATE = """
                         document.getElementById('dlFridaScript').href = '/download/' + res.frida_file;
                         downloadBox.style.display = 'block';
                     }
-                    statusText.innerText = `✨ تمت العملية بنجاح! تم رصد ${globalResults.length} دالة وحماية.`;
+                    statusText.innerText = `✨ تم الانتهاء بنجاح! العثور على ${globalResults.length} دالة مستهدفة.`;
                     setTimeout(() => {
                         progressBox.style.display = 'none';
                         renderResults(globalResults);
@@ -286,7 +271,7 @@ MOBILE_HTML_TEMPLATE = """
                             downloadBtn.style.display = 'block';
                             filterContainer.style.display = 'flex';
                         }
-                    }, 400);
+                    }, 300);
                 } else {
                     statusText.innerText = 'خطأ: ' + res.error;
                 }
@@ -320,7 +305,7 @@ MOBILE_HTML_TEMPLATE = """
                 <div class="code-text">${item.text}</div>
                 <div class="mod-suggestion">
                     <span>💡 الشرح والباتش: ${item.suggestion}</span>
-                    <button class="copy-btn" onclick="copyText('${item.suggestion.replace(/'/g, "\\\\'")}', this)">نسخ الباتش</button>
+                    <button class="copy-btn" onclick="copyText('${item.suggestion.replace(/'/g, "\\\\'")}', this)">نسخ التعديل</button>
                 </div>
             `;
             container.appendChild(card);
@@ -351,7 +336,7 @@ MOBILE_HTML_TEMPLATE = """
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(globalResults, null, 2));
         const a = document.createElement('a');
         a.href = dataStr;
-        a.download = 'Ultimate_Reverse_Report.json';
+        a.download = 'DEX_Reverse_Report.json';
         a.click();
     }
 
@@ -364,8 +349,8 @@ MOBILE_HTML_TEMPLATE = """
                 return;
             }
             data.history.forEach(h => {
-                list.innerHTML += `<div style="background:#030508; padding:8px; border-radius:8px; margin-bottom:6px; border:1px solid var(--border-color); font-size:0.75rem;">
-                    <div><b>${h[1]}</b><br><small style="color:var(--text-muted)">${h[2]} (${h[3]} نتائج)</small></div>
+                list.innerHTML += `<div style="background:#030712; padding:10px; border-radius:10px; margin-bottom:8px; border:1px solid var(--border-color); font-size:0.75rem;">
+                    <div><b>${h[1]}</b><br><small style="color:var(--text-muted)">عدد النتائج: ${h[2]}</small></div>
                 </div>`;
             });
         });
@@ -395,58 +380,28 @@ def download_file(filename):
         return send_file(file_path, as_attachment=True)
     return "الملف غير موجود", 404
 
-def parse_android_manifest(apk_path):
-    try:
-        with zipfile.ZipFile(apk_path, 'r') as z:
-            if 'AndroidManifest.xml' in z.namelist():
-                content = z.read('AndroidManifest.xml')
-                strings = re.findall(b'[\x20-\x7E]{4,}', content)
-                pkg = "com.reversed.app"
-                for s in strings:
-                    if b'.' in s and not b'/' in s and len(s) < 50:
-                        pkg = s.decode('utf-8', errors='ignore')
-                        break
-                return {'name': os.path.basename(apk_path), 'package': pkg}
-    except Exception:
-        pass
-    return {'name': 'تطبيق أندرويد', 'package': 'com.reverse.app'}
-
-def generate_frida_script(package_name):
+def generate_frida_script(filename):
     return f"""/*
- * Frida Auto-Generated Hook Script for {package_name}
- * By DEX Reverse Ultimate Engine
+ * Frida Hook Script for {filename}
+ * Generated by DEX Mobile Reverse Pro
  */
 Java.perform(function () {{
-    console.log("[*] Starting Frida Hook for Premium & Billing Bypass...");
+    console.log("[*] Hooking DEX targets for {filename}...");
 
-    // Hook Google Play Billing / In-App Purchase response
-    try {{
-        var Purchase = Java.use("com.android.vending.billing.IInAppBillingService$Stub");
-        // Bypass purchase verification
-        console.log("[+] Hooked Google Play Billing successfully.");
-    }} catch(err) {{
-        console.log("[-] Billing class not found directly, skipping standard billing hook.");
-    }}
-
-    // Hook common VIP / IsPro boolean checks
-    var targetClasses = ["com.app.utils.Preferences", "com.app.manager.UserManager", "com.app.billing.SubscriptionManager"];
-    targetClasses.forEach(function(className) {{
+    // Hook common VIP & Pro booleans
+    var classes = ["com.app.utils.PrefManager", "com.app.billing.BillingManager", "com.core.security.LicenseChecker"];
+    classes.forEach(function(clsName) {{
         try {{
-            var targetClass = Java.use(className);
-            targetClass.isVip.implementation = function() {{
-                console.log("[+] Intercepted isVip() -> Forcing TRUE!");
-                return true;
-            }};
-            targetClass.isPro.implementation = function() {{
-                console.log("[+] Intercepted isPro() -> Forcing TRUE!");
-                return true;
-            }};
+            var target = Java.use(clsName);
+            target.isVip.implementation = function() {{ return true; }};
+            target.isPro.implementation = function() {{ return true; }};
+            target.isSubscribed.implementation = function() {{ return true; }};
         }} catch(e) {{}}
     }});
 }});
 """
 
-def process_dex_analysis(content, filename, patch_mode):
+def analyze_dex_file(content, filename, patch_mode):
     results = []
     patched_content = bytearray(content)
     STRING_PATTERN = re.compile(b'[\x20-\x7E]{4,}')
@@ -471,9 +426,9 @@ def process_dex_analysis(content, filename, patch_mode):
                 suggestion_text = "const/4 v0, 0x1 (إرجاع True)"
                 
                 if patch_mode == 'invert_jump':
-                    suggestion_text = "عكس شرط القفزة (Invert conditional jump)"
+                    suggestion_text = "عكس شرط القفزة (Invert Jump)"
                 elif patch_mode == 'nop_check':
-                    suggestion_text = "تجاهل فحص الحماية (NOP instruction)"
+                    suggestion_text = "تجاهل فحص الحماية (NOP)"
 
                 obj = {
                     'text': f"[{filename}] {s}",
@@ -498,10 +453,9 @@ def analyze():
     gen_frida = request.form.get('gen_frida', 'yes')
     
     if not files or all(f.filename == '' for f in files):
-        return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات!'})
+        return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات DEX!'})
     
     all_results = []
-    app_meta = {'name': files[0].filename, 'package': 'com.app.target'}
     patched_filename = None
     frida_filename = None
     
@@ -510,32 +464,16 @@ def analyze():
         for file in files:
             file_path = os.path.join(UPLOAD_FOLDER, file.filename)
             file.save(file_path)
-            
-            if file.filename.endswith('.apk'):
-                app_meta = parse_android_manifest(file_path)
 
             def process_file(f_path, f_name):
                 res = []
                 p_file = None
                 f_file = None
                 try:
-                    if f_name.endswith(('.apk', '.zip')) or zipfile.is_zipfile(f_path):
-                        with zipfile.ZipFile(f_path, 'r') as z:
-                            dex_list = [n for n in z.namelist() if n.endswith('.dex')]
-                            for dex in dex_list:
-                                with z.open(dex) as dx:
-                                    dex_bytes = dx.read()
-                                    r, patched_bytes = process_dex_analysis(dex_bytes, f"{f_name} -> {dex}", patch_mode)
-                                    res.extend(r)
-                                    
-                                    p_file = f"patched_{f_name.replace('.apk', '')}.dex"
-                                    with open(os.path.join(OUTPUT_FOLDER, p_file), 'wb') as pf:
-                                        pf.write(patched_bytes)
-                                        
-                    elif f_name.endswith('.dex'):
+                    if f_name.endswith('.dex'):
                         with open(f_path, 'rb') as f:
                             dex_bytes = f.read()
-                            r, patched_bytes = process_dex_analysis(dex_bytes, f_name, patch_mode)
+                            r, patched_bytes = analyze_dex_file(dex_bytes, f_name, patch_mode)
                             res.extend(r)
                             
                             p_file = f"patched_{f_name}"
@@ -543,8 +481,8 @@ def analyze():
                                 pf.write(patched_bytes)
                                 
                     if gen_frida == 'yes':
-                        f_file = f"frida_hook_{f_name.split('.')[0]}.js"
-                        script_content = generate_frida_script(app_meta['package'])
+                        f_file = f"frida_hook_{f_name}.js"
+                        script_content = generate_frida_script(f_name)
                         with open(os.path.join(OUTPUT_FOLDER, f_file), 'w', encoding='utf-8') as ff:
                             ff.write(script_content)
                             
@@ -566,8 +504,8 @@ def analyze():
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute('INSERT INTO history (filename, app_name, package_name, total_results) VALUES (?, ?, ?, ?)',
-                       (files[0].filename, app_meta['name'], app_meta['package'], len(all_results)))
+        cursor.execute('INSERT INTO history (filename, total_results) VALUES (?, ?)',
+                       (files[0].filename, len(all_results)))
         conn.commit()
         conn.close()
     except Exception:
@@ -576,7 +514,6 @@ def analyze():
     return jsonify({
         'success': True, 
         'results': all_results[:2000], 
-        'app_info': app_meta,
         'patched_file': patched_filename,
         'frida_file': frida_filename
     })
