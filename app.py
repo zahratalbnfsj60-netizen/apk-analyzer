@@ -8,111 +8,169 @@ app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# تعبيرات منتظمة محسنة لاستخراج النصوص والسلاسل البرمجية داخل ملفات الـ DEX
+# تعبيرات منتظمة دقيقة لاستخراج النصوص البرمجية
 STRING_PATTERN = re.compile(b'[\x20-\x7E]{4,}')
 
-# الكلمات المفتاحية المستهدفة لفتح المميزات المدفوعة والـ VIP
-TARGET_KEYWORDS = [
-    'isvip', 'ispro', 'ispremium', 'issubscribed', 'hasaccess', 
-    'premium_subscription', 'vip_status', 'pro_status', 'checklicense',
-    'is_vip', 'is_pro', 'is_premium', 'unlock_all', 'purchased',
-    'subscription', 'license_key', 'pro_version', 'vip_user'
-]
+# تصنيف الكلمات المفتاحية مع الألوان المخصصة لكل نوع دالة
+FEATURE_CATEGORIES = {
+    'purchase': {
+        'name': 'دوال الشراء والدفع (In-App Purchase)',
+        'color': '#ff4757',  # أحمر فخم
+        'badge_bg': 'rgba(255, 71, 87, 0.15)',
+        'keywords': ['purchase', 'billing', 'playstore', 'checkout', 'payment', 'order_id', 'sku', 'consume']
+    },
+    'vip': {
+        'name': 'دوال الـ VIP والاشتراكات',
+        'color': '#f0b429',  # أذهبي / أصفر فاخر
+        'badge_bg': 'rgba(240, 180, 41, 0.15)',
+        'keywords': ['isvip', 'ispro', 'ispremium', 'issubscribed', 'vip_status', 'pro_status', 'subscription', 'pro_version']
+    },
+    'bypass': {
+        'name': 'دوال التخطي والتراخيص (Bypass & License)',
+        'color': '#2ed573',  # أخضر مضيء
+        'badge_bg': 'rgba(46, 213, 115, 0.15)',
+        'keywords': ['checklicense', 'hasaccess', 'unlock_all', 'license_key', 'is_verified', 'security_check', 'crack', 'bypass']
+    }
+}
 
-# الكلمات المستبعدة لتجنب الإعلانات والخدمات الخارجية غير المطلوبة
+# الكلمات المستبعدة لتنقية النتائج من الإعلانات والحزم الغير مفيدة
 IGNORED_KEYWORDS = [
     'applovin', 'firebase', 'google', 'ads', 'facebook', 
-    'adjust', 'ironsource', 'unityads', 'admob', 'analytics'
+    'adjust', 'ironsource', 'unityads', 'admob', 'analytics', 'androidx'
 ]
 
-HTML_PAGE = """
+MOBILE_HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>محلل دوال VIP & Pro المطور | النسخة الاحترافية</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DEX Reverse Engine | محلل دوال العكس الذكي</title>
     <style>
         :root {
-            --bg-color: #0d1117;
-            --card-bg: #161b22;
-            --border-color: #30363d;
-            --gold: #f0b429;
-            --gold-hover: #d99b14;
-            --text-main: #c9d1d9;
-            --text-muted: #8b949e;
+            --bg-deep: #090d16;
+            --card-bg: #111827;
+            --border-color: #1f293d;
+            --accent: #3b82f6;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
         }
-        body { font-family: system-ui, -apple-system, Tahoma, sans-serif; background-color: var(--bg-color); color: var(--text-main); padding: 20px; margin: 0; text-align: center; }
-        .container { max-width: 850px; background: var(--card-bg); padding: 25px; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: 0 8px 24px rgba(0,0,0,0.5); margin: auto; }
-        h2 { color: var(--gold); font-size: 1.6rem; margin-bottom: 5px; font-weight: 800; letter-spacing: -0.5px; }
-        p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: var(--bg-deep); color: var(--text-main); margin: 0; padding: 15px; }
         
-        .file-box { border: 2px dashed var(--gold); padding: 25px; border-radius: 12px; margin: 15px 0; background: rgba(240, 180, 41, 0.03); transition: background 0.3s; }
-        .file-box:hover { background: rgba(240, 180, 41, 0.06); }
-        input[type="file"] { color: var(--text-main); width: 100%; font-size: 0.95rem; cursor: pointer; }
+        .app-header { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 15px; border-radius: 14px; border: 1px solid var(--border-color); margin-bottom: 15px; }
+        .app-title h1 { font-size: 1.15rem; margin: 0; color: #60a5fa; font-weight: 800; }
+        .app-title p { font-size: 0.75rem; margin: 3px 0 0; color: var(--text-muted); }
+        .settings-btn { background: #1f293d; border: none; color: var(--text-main); width: 38px; height: 38px; border-radius: 10px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        .upload-card { background: var(--card-bg); border: 2px dashed #374151; padding: 20px; border-radius: 14px; text-align: center; margin-bottom: 15px; transition: 0.3s; }
+        .upload-card:active { border-color: var(--accent); }
+        input[type="file"] { display: none; }
+        .upload-label { display: block; cursor: pointer; color: var(--text-main); font-size: 0.9rem; font-weight: 600; }
+        .upload-label span { display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 5px; }
+
+        .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        button.action-btn { background: var(--accent); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; font-size: 0.9rem; cursor: pointer; width: 100%; box-shadow: 0 4px 12px rgba(59,130,246,0.25); }
+        button.action-btn.secondary { background: #374151; color: var(--text-main); box-shadow: none; }
+        button.action-btn.danger { background: #ef4444; }
+
+        /* Settings Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+        .modal-content { background: var(--card-bg); width: 100%; max-width: 400px; padding: 20px; border-radius: 16px; border: 1px solid var(--border-color); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .modal-header h3 { margin: 0; font-size: 1rem; color: var(--text-main); }
+        .close-modal { background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; }
         
-        .btn-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 15px; }
-        button { background: var(--gold); color: #000; border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; flex: 1; font-size: 0.95rem; min-width: 130px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(240,180,41,0.2); }
-        button:hover { background: var(--gold-hover); transform: translateY(-1px); }
-        button.btn-danger { background: #da3633; color: #fff; box-shadow: 0 4px 12px rgba(218,54,51,0.2); }
-        button.btn-danger:hover { background: #b62324; }
-        button.btn-success { background: #2ea043; color: #fff; box-shadow: 0 4px 12px rgba(46,160,67,0.2); }
-        button.btn-success:hover { background: #238636; }
-        
-        #progress-container { width: 100%; background: #21262d; border-radius: 8px; margin-top: 20px; overflow: hidden; display: none; border: 1px solid var(--border-color); }
-        #progress-bar { width: 0%; height: 24px; background: linear-gradient(90deg, #f0b429, #ffd369); text-align: center; color: #000; font-weight: bold; font-size: 0.85rem; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); line-height: 24px; }
-        #status { margin-top: 12px; color: var(--gold); font-size: 0.95rem; font-weight: 600; }
-        
-        .search-box { width: 100%; padding: 12px; margin-top: 15px; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; box-sizing: border-box; display: none; font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
-        .search-box:focus { border-color: var(--gold); }
-        
-        #methods-list { text-align: left; background: #010409; padding: 15px; border-radius: 10px; margin-top: 15px; max-height: 480px; overflow-y: auto; direction: ltr; display: none; border: 1px solid var(--border-color); }
-        .method-card { background: var(--card-bg); padding: 12px; margin-bottom: 12px; border-radius: 8px; border-left: 5px solid var(--gold); font-family: monospace; font-size: 0.85rem; border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); }
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .badge { padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; background: rgba(240,180,41,0.15); color: var(--gold); border: 1px solid rgba(240,180,41,0.3); }
-        .item-text { color: #58a6ff; word-break: break-all; font-weight: bold; }
-        .suggestion-box { background: #0d1117; padding: 8px 10px; margin-top: 8px; border-radius: 6px; color: #3fb950; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center; border: 1px dashed rgba(63, 185, 80, 0.4); }
-        .copy-btn { background: #21262d; color: var(--text-main); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; transition: background 0.2s; }
-        .copy-btn:hover { background: var(--gold); color: #000; border-color: var(--gold); }
+        .setting-item { margin-bottom: 15px; }
+        .setting-item label { display: block; font-size: 0.85rem; margin-bottom: 5px; color: var(--text-muted); }
+        .setting-item select, .setting-item input { width: 100%; background: #090d16; border: 1px solid var(--border-color); color: var(--text-main); padding: 10px; border-radius: 8px; font-size: 0.9rem; outline: none; }
+
+        #progress-box { background: var(--card-bg); padding: 15px; border-radius: 14px; margin-bottom: 15px; display: none; border: 1px solid var(--border-color); text-align: center; }
+        .progress-bar-container { background: #1f293d; border-radius: 6px; height: 10px; overflow: hidden; margin-top: 10px; }
+        .progress-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); transition: width 0.3s; }
+        #status-text { font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; }
+
+        .search-filter { width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 12px; border-radius: 10px; margin-bottom: 15px; font-size: 0.9rem; outline: none; display: none; }
+
+        /* Results List */
+        #results-container { display: none; }
+        .result-card { background: var(--card-bg); padding: 12px; border-radius: 12px; margin-bottom: 10px; border: 1px solid var(--border-color); font-family: monospace; font-size: 0.8rem; direction: ltr; text-align: left; }
+        .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; direction: rtl; }
+        .cat-badge { padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; }
+        .code-text { color: #60a5fa; word-break: break-all; font-weight: bold; margin-bottom: 8px; }
+        .mod-suggestion { background: #090d16; padding: 6px 8px; border-radius: 6px; color: #2ed573; font-size: 0.75rem; border: 1px dashed rgba(46,213,115,0.3); display: flex; justify-content: space-between; align-items: center; }
+        .copy-btn { background: #1f293d; border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 8px; border-radius: 5px; font-size: 0.7rem; cursor: pointer; }
     </style>
 </head>
 <body>
-<div class="container">
-    <h2>محلل دوال فتح المميزات الكاملة (DEX & APK)</h2>
-    <p>قم برفع ملفات الـ DEX أو حزم الـ APK للتحليل واستخراج دوال التحقق والتعديل المقترح:</p>
-    
-    <div class="file-box">
-        <input type="file" id="dexFiles" multiple accept=".dex,.apk,.zip">
+
+    <div class="app-header">
+        <div class="app-title">
+            <h1>DEX Reverse Pro</h1>
+            <p>محلل دوال الشراء والتخطي والـ VIP الذكي</p>
+        </div>
+        <button class="settings-btn" onclick="toggleSettings(true)">⚙️</button>
     </div>
 
-    <div class="btn-group">
-        <button onclick="uploadAndAnalyze()">بدء التحليل الفوري</button>
-        <button class="btn-success" id="downloadBtn" onclick="downloadTxt()" style="display:none;">تحميل النتائج TXT</button>
-        <button class="btn-danger" onclick="clearAll()">إعادة ضبط</button>
+    <div class="upload-card" onclick="document.getElementById('fileInput').click()">
+        <label class="upload-label">
+            📁 اضغط لاختيار ملفات DEX أو APK
+            <span>يدعم التخزين الداخلي واستخراج حزم الـ DEX تلقائياً</span>
+        </label>
+        <input type="file" id="fileInput" multiple accept=".dex,.apk,.zip">
     </div>
 
-    <div id="progress-container">
-        <div id="progress-bar">0%</div>
+    <div class="actions-grid">
+        <button class="action-btn" onclick="startAnalysis()">بدء التحليل الفوري</button>
+        <button class="action-btn secondary" id="downloadBtn" onclick="downloadResults()" style="display:none;">تصدير TXT</button>
     </div>
-    <div id="status"></div>
 
-    <input type="text" id="filterInput" class="search-box" placeholder="🔍 تصفية النتائج الذكية..." onkeyup="filterMethods()">
-    
-    <div id="methods-list"></div>
-</div>
+    <div id="progress-box">
+        <div id="status-text">جاري تحليل هيكل الملفات...</div>
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+    </div>
+
+    <input type="text" id="searchFilter" class="search-filter" placeholder="🔍 تصفية النتائج بالكلمات أو اسم الدالة..." onkeyup="filterResults()">
+
+    <div id="results-container"></div>
+
+    <!-- إعدادات التطبيق -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>إعدادات الهندسة العكسية</h3>
+                <button class="close-modal" onclick="toggleSettings(false)">✕</button>
+            </div>
+            <div class="setting-item">
+                <label>الحد الأقصى للنتائج المستخرجة</label>
+                <select id="maxResults">
+                    <option value="500">500 دالة (سريع جداً)</option>
+                    <option value="1500" selected>1500 دالة (موصى به)</option>
+                    <option value="3000">3000 دالة (فحص عميق)</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>نوع التعديل المقترح التلقائي</label>
+                <select id="modType">
+                    <option value="const/4 v0, 0x1 (إرجاع True)">const/4 v0, 0x1 (إرجاع قيمة صحيحة)</option>
+                    <option value="return-void (تخطي الدالة)">return-void (إلغاء التحقق)</option>
+                </select>
+            </div>
+            <button class="action-btn danger" onclick="resetApp()" style="margin-top:10px;">إعادة ضبط التطبيق</button>
+        </div>
+    </div>
 
 <script>
-    let allResults = [];
+    let globalResults = [];
 
-    function uploadAndAnalyze() {
-        const fileInput = document.getElementById('dexFiles');
-        const listDiv = document.getElementById('methods-list');
-        const statusDiv = document.getElementById('status');
-        const progressContainer = document.getElementById('progress-container');
-        const progressBar = document.getElementById('progress-bar');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const filterInput = document.getElementById('filterInput');
+    function toggleSettings(show) {
+        document.getElementById('settingsModal').style.display = show ? 'flex' : 'none';
+    }
 
+    function startAnalysis() {
+        const fileInput = document.getElementById('fileInput');
         if (!fileInput.files || fileInput.files.length === 0) {
             alert('الرجاء اختيار ملف واحد على الأقل!');
             return;
@@ -122,137 +180,124 @@ HTML_PAGE = """
         for (let i = 0; i < fileInput.files.length; i++) {
             formData.append('files', fileInput.files[i]);
         }
+        formData.append('max_results', document.getElementById('maxResults').value);
+        formData.append('mod_type', document.getElementById('modType').value);
 
-        progressContainer.style.display = 'block';
-        progressBar.style.width = '0%';
-        progressBar.innerText = '0%';
-        statusDiv.innerText = 'جاري رفع الملفات ومعالجتها...';
-        listDiv.style.display = 'none';
-        listDiv.innerHTML = '';
+        const progressBox = document.getElementById('progress-box');
+        const progressBar = document.getElementById('progressBar');
+        const statusText = document.getElementById('status-text');
+        const resultsContainer = document.getElementById('results-container');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const searchFilter = document.getElementById('searchFilter');
+
+        progressBox.style.display = 'block';
+        progressBar.style.width = '20%';
+        statusText.innerText = 'جاري رفع وفك ضغط الحزم...';
+        resultsContainer.style.display = 'none';
         downloadBtn.style.display = 'none';
-        filterInput.style.display = 'none';
+        searchFilter.style.display = 'none';
 
         const xhr = new XMLHttpRequest();
         xhr.open('POST', '/analyze', true);
 
-        xhr.upload.onprogress = function (e) {
+        xhr.upload.onprogress = function(e) {
             if (e.lengthComputable) {
-                const percentComplete = Math.round((e.loaded / e.total) * 45);
-                progressBar.style.width = percentComplete + '%';
-                progressBar.innerText = percentComplete + '%';
-                statusDiv.innerText = `جاري الرفع... (${percentComplete}%)`;
+                const percent = Math.round((e.loaded / e.total) * 50);
+                progressBar.style.width = percent + '%';
             }
         };
 
-        let currentProgress = 45;
-        const interval = setInterval(() => {
-            if (currentProgress < 92) {
-                currentProgress += 15;
-                progressBar.style.width = currentProgress + '%';
-                progressBar.innerText = currentProgress + '%';
-                statusDiv.innerText = `⚡ جارٍ الفحص العميق واستخراج دوال التميز... (${currentProgress}%)`;
+        let interval = setInterval(() => {
+            let currentW = parseInt(progressBar.style.width);
+            if (currentW < 85) {
+                progressBar.style.width = (currentW + 10) + '%';
+                statusText.innerText = '⚡ جارٍ فحص دوال الشراء والتخطي والـ VIP...';
             }
-        }, 80);
+        }, 300);
 
-        xhr.onload = function () {
+        xhr.onload = function() {
             clearInterval(interval);
             if (xhr.status === 200) {
-                try {
-                    const result = JSON.parse(xhr.responseText);
-                    progressBar.style.width = '100%';
-                    progressBar.innerText = '100%';
-                    
-                    if (result.success) {
-                        allResults = result.methods;
-                        statusDiv.innerText = `✨ تم الانتهاء بنجاح! العثور على ${allResults.length} دالة مطابقة.`;
-                        if (allResults.length > 0) {
-                            renderMethods(allResults);
-                            downloadBtn.style.display = 'inline-block';
-                            filterInput.style.display = 'block';
-                        } else {
-                            listDiv.style.display = 'block';
-                            listDiv.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">لم يتم العثور على دوال مطابقة للمعايير.</div>';
+                const res = JSON.parse(xhr.responseText);
+                progressBar.style.width = '100%';
+                if (res.success) {
+                    globalResults = res.results;
+                    statusText.innerText = `✨ تم الانتهاء! العثور على ${globalResults.length} دالة مستهدفة.`;
+                    setTimeout(() => {
+                        progressBox.style.display = 'none';
+                        renderResults(globalResults);
+                        if(globalResults.length > 0) {
+                            downloadBtn.style.display = 'block';
+                            searchFilter.style.display = 'block';
                         }
-                    } else {
-                        statusDiv.innerText = 'حدث خطأ أثناء معالجة البيانات.';
-                        listDiv.style.display = 'block';
-                        listDiv.innerHTML = `<div style="color:#da3633; padding:10px;">خطأ: ${result.error}</div>`;
-                    }
-                } catch (err) {
-                    statusDiv.innerText = 'خطأ في قراءة استجابة الخادم.';
+                    }, 500);
+                } else {
+                    statusText.innerText = 'خطأ: ' + res.error;
                 }
             } else {
-                statusDiv.innerText = 'فشل الاتصال بالخادم.';
+                statusText.innerText = 'فشل الاتصال بالخادم.';
             }
         };
 
         xhr.send(formData);
     }
 
-    function renderMethods(resultsArray) {
-        const listDiv = document.getElementById('methods-list');
-        listDiv.style.display = 'block';
-        listDiv.innerHTML = '';
+    function renderResults(data) {
+        const container = document.getElementById('results-container');
+        container.style.display = 'block';
+        container.innerHTML = '';
 
-        resultsArray.forEach((item) => {
+        if (data.length === 0) {
+            container.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">لم يتم العثور على دوال مطابقة للمعايير.</div>';
+            return;
+        }
+
+        data.forEach(item => {
             const card = document.createElement('div');
-            card.className = 'method-card';
-            
+            card.className = 'result-card';
+            card.style.borderLeft = `5px solid ${item.category_color}`;
+
             card.innerHTML = `
-                <div class="card-header">
-                    <span class="badge">💎 دالة مميزات مفعلة</span>
-                    <button class="copy-btn" onclick="copyText('${item.text.replace(/'/g, "\\\\'")}', this)">نسخ النص</button>
+                <div class="result-header">
+                    <span class="cat-badge" style="background:${item.category_badge}; color:${item.category_color};">${item.category_name}</span>
+                    <button class="copy-btn" onclick="copyText('${item.text.replace(/'/g, "\\\\'")}', this)">نسخ الدالة</button>
                 </div>
-                <div class="item-text">${item.text}</div>
-                <div class="suggestion-box">
-                    <span>💡 التعديل المقترح: ${item.suggestion}</span>
-                    <button class="copy-btn" onclick="copyText('${item.suggestion.replace(/'/g, "\\\\'")}', this)">نسخ الكود</button>
+                <div class="code-text">${item.text}</div>
+                <div class="mod-suggestion">
+                    <span>💡 تعديل المقترح: ${item.suggestion}</span>
+                    <button class="copy-btn" onclick="copyText('${item.suggestion.replace(/'/g, "\\\\'")}', this)">نسخ التعديل</button>
                 </div>
             `;
-            listDiv.appendChild(card);
+            container.appendChild(card);
         });
     }
 
-    function copyText(text, btnElement) {
+    function filterResults() {
+        const query = document.getElementById('searchFilter').value.toLowerCase();
+        const filtered = globalResults.filter(item => item.text.toLowerCase().includes(query));
+        renderResults(filtered);
+    }
+
+    function copyText(text, btn) {
         navigator.clipboard.writeText(text).then(() => {
-            const originalText = btnElement.innerText;
-            btnElement.innerText = 'تم النسخ!';
-            btnElement.style.background = 'var(--gold)';
-            btnElement.style.color = '#000';
-            setTimeout(() => { 
-                btnElement.innerText = originalText;
-                btnElement.style.background = '';
-                btnElement.style.color = '';
-            }, 1500);
+            let oldText = btn.innerText;
+            btn.innerText = 'تم!';
+            setTimeout(() => btn.innerText = oldText, 1200);
         });
     }
 
-    function filterMethods() {
-        const query = document.getElementById('filterInput').value.toLowerCase();
-        const filtered = allResults.filter(m => m.text.toLowerCase().includes(query));
-        renderMethods(filtered);
-    }
-
-    function downloadTxt() {
-        const text = allResults.map(r => `${r.text} --> Suggested Mod: ${r.suggestion}`).join('\\n');
+    function downloadResults() {
+        const text = globalResults.map(r => `[${r.category_name}] ${r.text} --> Mod: ${r.suggestion}`).join('\\n');
         const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'Unlocked_Features_Methods.txt';
+        a.download = 'Reversed_Functions_Report.txt';
         a.click();
     }
 
-    function clearAll() {
-        document.getElementById('dexFiles').value = '';
-        document.getElementById('methods-list').style.display = 'none';
-        document.getElementById('methods-list').innerHTML = '';
-        document.getElementById('status').innerText = '';
-        document.getElementById('progress-container').style.display = 'none';
-        document.getElementById('downloadBtn').style.display = 'none';
-        document.getElementById('filterInput').style.display = 'none';
-        document.getElementById('filterInput').value = '';
-        allResults = [];
+    function resetApp() {
+        location.reload();
     }
 </script>
 </body>
@@ -260,89 +305,86 @@ HTML_PAGE = """
 """
 
 @app.route('/')
-def home():
-    return render_template_string(HTML_PAGE)
+def index():
+    return render_template_string(MOBILE_HTML_TEMPLATE)
 
-def process_dex_content(content, filename):
-    matched = []
-    text_chunks = STRING_PATTERN.findall(content)
-    for chunk in text_chunks:
+def analyze_dex_bytes(content, filename, max_limit, default_suggestion):
+    results = []
+    chunks = STRING_PATTERN.findall(content)
+    
+    for chunk in chunks:
         try:
             s = chunk.decode('utf-8', errors='ignore').strip()
             lower_s = s.lower()
             
-            if any(kw in lower_s for kw in TARGET_KEYWORDS):
-                if not any(ig in lower_s for ig in IGNORED_KEYWORDS):
-                    if len(s) < 80:
-                        result_obj = {
-                            'file': filename,
-                            'text': f"[{filename}] {s}",
-                            'suggestion': 'const/4 v0, 0x1 (تعديل القيمة إلى True لفتح المميزات)'
-                        }
-                        if result_obj not in matched:
-                            matched.append(result_obj)
-                            if len(matched) >= 1000:
-                                break
+            if len(s) > 80 or any(ig in lower_s for ig in IGNORED_KEYWORDS):
+                continue
+                
+            matched_cat = None
+            for cat_key, cat_data in FEATURE_CATEGORIES.items():
+                if any(kw in lower_s for kw in cat_data['keywords']):
+                    matched_cat = cat_key
+                    break
+            
+            if matched_cat:
+                cat_info = FEATURE_CATEGORIES[matched_cat]
+                obj = {
+                    'text': f"[{filename}] {s}",
+                    'category_name': cat_info['name'],
+                    'category_color': cat_info['color'],
+                    'category_badge': cat_info['badge_bg'],
+                    'suggestion': default_suggestion
+                }
+                if obj not in results:
+                    results.append(obj)
+                    if len(results) >= max_limit:
+                        break
         except Exception:
             continue
-    return matched
-
-def process_single_file(file):
-    if not file or file.filename == '':
-        return []
-    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(file_path)
-    file_results = []
-    
-    try:
-        if file.filename.endswith('.apk') or file.filename.endswith('.zip') or zipfile.is_zipfile(file_path):
-            with zipfile.ZipFile(file_path, 'r') as z:
-                dex_files = [name for name in z.namelist() if name.endswith('.dex')]
-                with ThreadPoolExecutor() as executor:
-                    futures = {executor.submit(scan_dex_from_zip, file_path, zinfo, file.filename): zinfo for zinfo in dex_files}
-                    for future in as_completed(futures):
-                        file_results.extend(future.result())
-        elif file.filename.endswith('.dex'):
-            with open(file_path, "rb") as f:
-                content = f.read()
-            file_results.extend(process_dex_content(content, file.filename))
-    except Exception:
-        pass
-    finally:
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except Exception:
-                pass
-    return file_results
-
-def scan_dex_from_zip(apk_path, zinfo, filename):
-    try:
-        with zipfile.ZipFile(apk_path, 'r') as z:
-            with z.open(zinfo) as dex_file:
-                content = dex_file.read()
-                return process_dex_content(content, f"{filename} -> {zinfo}")
-    except Exception:
-        return []
+    return results
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    files = request.files.getlist('files') or request.files.getlist('file')
+    files = request.files.getlist('files')
+    max_limit = int(request.form.get('max_results', 1500))
+    default_suggestion = request.form.get('mod_type', 'const/4 v0, 0x1 (إرجاع True)')
+    
     if not files or all(f.filename == '' for f in files):
-        return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات للتحليل'})
+        return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات!'})
     
-    all_matched_results = []
+    all_results = []
     
-    # المعالجة بالتوازي للتعامل مع ملفات متعددة بكفاءة وسرعة فائقة
     with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(process_single_file, file) for file in files]
-        for future in as_completed(futures):
-            try:
-                all_matched_results.extend(future.result())
-            except Exception:
-                pass
+        futures = []
+        for file in files:
+            file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+            file.save(file_path)
+            
+            def process_file(f_path, f_name):
+                res = []
+                try:
+                    if f_name.endswith(('.apk', '.zip')) or zipfile.is_zipfile(f_path):
+                        with zipfile.ZipFile(f_path, 'r') as z:
+                            dex_list = [n for n in z.namelist() if n.endswith('.dex')]
+                            for dex in dex_list:
+                                with z.open(dex) as dx:
+                                    res.extend(analyze_dex_bytes(dx.read(), f"{f_name} -> {dex}", max_limit, default_suggestion))
+                    elif f_name.endswith('.dex'):
+                        with open(f_path, 'rb') as f:
+                            res.extend(analyze_dex_bytes(f.read(), f_name, max_limit, default_suggestion))
+                except Exception:
+                    pass
+                finally:
+                    if os.path.exists(f_path):
+                        os.remove(f_path)
+                return res
 
-    return jsonify({'success': True, 'methods': all_matched_results[:3000]})
+            futures.append(executor.submit(process_file, file_path, file.filename))
+            
+        for future in as_completed(futures):
+            all_results.extend(future.result())
+
+    return jsonify({'success': True, 'results': all_results[:max_limit]})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
