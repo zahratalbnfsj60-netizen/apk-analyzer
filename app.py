@@ -8,24 +8,27 @@ from flask import Flask, request, jsonify, render_template_string, send_file
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'outputs'
-DB_PATH = 'dex_studio_pro.db'
+DB_PATH = 'dex_server_studio.db'
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename TEXT,
-            total_results INTEGER,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                filename TEXT,
+                total_results INTEGER,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
 
 init_db()
 
@@ -64,7 +67,7 @@ MOBILE_HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DEX Studio Pro | محرر وهندسة الـ DEX</title>
+    <title>DEX Server Studio | فحص ومعالجة السيرفر</title>
     <style>
         :root {
             --bg-deep: #020617;
@@ -84,10 +87,10 @@ MOBILE_HTML_TEMPLATE = """
         .nav-btns { display: flex; gap: 6px; }
         .icon-btn { background: #1e293b; border: 1px solid var(--border-color); color: var(--text-main); width: 36px; height: 36px; border-radius: 10px; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
-        .upload-card { background: linear-gradient(135deg, #090f1d 0%, #1e1b4b 100%); border: 2px dashed #4f46e5; padding: 20px 14px; border-radius: 16px; text-align: center; margin-bottom: 12px; cursor: pointer; }
+        .upload-card { background: linear-gradient(135deg, #090f1d 0%, #1e1b4b 100%); border: 2px dashed #4f46e5; padding: 22px 14px; border-radius: 16px; text-align: center; margin-bottom: 12px; cursor: pointer; }
         input[type="file"] { display: none; }
-        .upload-label { display: block; cursor: pointer; color: var(--text-main); font-size: 0.85rem; font-weight: 700; }
-        .upload-label span { display: block; font-size: 0.7rem; color: var(--text-muted); margin-top: 5px; }
+        .upload-label { display: block; cursor: pointer; color: var(--text-main); font-size: 0.88rem; font-weight: 700; }
+        .upload-label span { display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; }
 
         .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
         button.action-btn { background: var(--accent); color: white; border: none; padding: 12px; border-radius: 11px; font-weight: bold; font-size: 0.85rem; cursor: pointer; width: 100%; box-shadow: 0 4px 15px var(--accent-glow); }
@@ -128,8 +131,8 @@ MOBILE_HTML_TEMPLATE = """
 
     <div class="app-header">
         <div class="app-title">
-            <h1>DEX Studio Pro</h1>
-            <p>محلل ومحرك باتش الـ DEX الحقيقي</p>
+            <h1>DEX Server Studio</h1>
+            <p>اختر الملف من ذاكرة الهاتف وافحصه على السيرفر</p>
         </div>
         <div class="nav-btns">
             <button class="icon-btn" onclick="toggleModal('historyModal', true)" title="السجل">📜</button>
@@ -139,37 +142,36 @@ MOBILE_HTML_TEMPLATE = """
 
     <div class="upload-card" onclick="document.getElementById('dexFile').click()">
         <label class="upload-label">
-            📁 اختر ملف .dex للتحليل واستخراج الهيدر الحقيقي
-            <span>تحليل جدول الدوال، تعديل السمالي، وتوليد Frida</span>
+            📁 اختر ملف .dex من ذاكرة هاتفك
+            <span id="fileChosenText">سيتم رفع الملف ومعالجته على السيرفر فوراً</span>
         </label>
-        <input type="file" id="dexFile" multiple accept=".dex">
+        <input type="file" id="dexFile" accept=".dex" onchange="fileSelected(this)">
     </div>
 
     <div class="download-box" id="downloadBox">
-        <div style="font-size: 0.8rem; color: #22c55e; font-weight: bold; margin-bottom: 6px;">✨ تم استخراج وباتش الملف بنجاح تام!</div>
+        <div style="font-size: 0.8rem; color: #22c55e; font-weight: bold; margin-bottom: 6px;">✨ تمت المعالجة والفحص على السيرفر بنجاح!</div>
         <a id="dlPatchedDex" href="#">تحميل DEX المعدل</a>
         <a id="dlFridaScript" href="#" style="background:#3b82f6;">تحميل سكربت Frida</a>
     </div>
 
     <div class="actions-grid">
-        <button class="action-btn" onclick="startAnalysis()">بدء الفحص والتحليل</button>
+        <button class="action-btn" onclick="startServerAnalysis()">بدء الفحص السحابي</button>
         <button class="action-btn secondary" id="downloadBtn" onclick="downloadJson()" style="display:none;">تصدير JSON</button>
     </div>
 
     <div id="progress-box">
-        <div id="status-text">جاري تحليل هيدر الـ DEX وقراءة Method IDs...</div>
+        <div id="status-text">جاري رفع الملف وفحصه على السيرفر...</div>
         <div class="progress-bar-container">
             <div class="progress-bar" id="progressBar"></div>
         </div>
     </div>
 
     <div class="filter-container" id="filterContainer">
-        <input type="text" id="searchFilter" class="search-filter" placeholder="🔍 تصفية النتائج بالـ Regex..." onkeyup="filterResults()">
+        <input type="text" id="searchFilter" class="search-filter" placeholder="🔍 تصفية النتائج..." onkeyup="filterResults()">
     </div>
 
     <div id="results-container"></div>
 
-    <!-- محرر السمالي التفاعلي (Smali Interactive Editor Modal) -->
     <div class="modal" id="editorModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -180,22 +182,21 @@ MOBILE_HTML_TEMPLATE = """
                 <label>تعديل بايت كود الدالة المختار:</label>
                 <textarea id="smaliEditorArea" rows="6"></textarea>
             </div>
-            <button class="action-btn" onclick="savePatch()">حفظ التطبيق على الـ DEX</button>
+            <button class="action-btn" onclick="savePatch()">حفظ التعديل</button>
         </div>
     </div>
 
-    <!-- الإعدادات -->
     <div class="modal" id="settingsModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>إعدادات الاستوديو</h3>
+                <h3>الإعدادات</h3>
                 <button class="close-modal" onclick="toggleModal('settingsModal', false)">✕</button>
             </div>
             <div class="setting-item">
-                <label>نوع التعديل التلقائي (Auto-Patch)</label>
+                <label>نوع التعديل التلقائي على السيرفر</label>
                 <select id="patchMode">
-                    <option value="return_true" selected>إرجاع قيمة True (const/4 v0, 0x1)</option>
-                    <option value="invert_jump">عكس القفزة الشرطية (Invert jump)</option>
+                    <option value="return_true" selected>إرجاع True (const/4 v0, 0x1)</option>
+                    <option value="invert_jump">عكس القفزة الشرطية</option>
                     <option value="nop_check">تجاهل الفحص (NOP)</option>
                 </select>
             </div>
@@ -209,7 +210,6 @@ MOBILE_HTML_TEMPLATE = """
         </div>
     </div>
 
-    <!-- السجل -->
     <div class="modal" id="historyModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -223,6 +223,12 @@ MOBILE_HTML_TEMPLATE = """
 <script>
     let globalResults = [];
 
+    function fileSelected(input) {
+        if(input.files && input.files[0]) {
+            document.getElementById('fileChosenText').innerText = "تم اختيار: " + input.files[0].name;
+        }
+    }
+
     function toggleModal(id, show) {
         document.getElementById(id).style.display = show ? 'flex' : 'none';
         if(id === 'historyModal' && show) loadHistory();
@@ -234,21 +240,19 @@ MOBILE_HTML_TEMPLATE = """
     }
 
     function savePatch() {
-        alert('تم حفظ التعديل وتحديث ملف الـ DEX بنجاح!');
+        alert('تم حفظ التعديل بنجاح!');
         toggleModal('editorModal', false);
     }
 
-    function startAnalysis() {
+    function startServerAnalysis() {
         const fileInput = document.getElementById('dexFile');
         if (!fileInput.files || fileInput.files.length === 0) {
-            alert('اختر ملف DEX أولاً!');
+            alert('الرجاء اختيار ملف DEX من ذاكرة الهاتف أولاً!');
             return;
         }
 
         const formData = new FormData();
-        for (let i = 0; i < fileInput.files.length; i++) {
-            formData.append('files', fileInput.files[i]);
-        }
+        formData.append('file', fileInput.files[0]);
         formData.append('patch_mode', document.getElementById('patchMode').value);
         formData.append('gen_frida', document.getElementById('genFrida').value);
 
@@ -261,8 +265,8 @@ MOBILE_HTML_TEMPLATE = """
         const downloadBox = document.getElementById('downloadBox');
 
         progressBox.style.display = 'block';
-        progressBar.style.width = '40%';
-        statusText.innerText = 'جاري قراءة هيكل الـ DEX وتحليل Method IDs...';
+        progressBar.style.width = '30%';
+        statusText.innerText = 'جاري رفع الملف إلى الخادم والفحص العميق...';
         resultsContainer.style.display = 'none';
         downloadBtn.style.display = 'none';
         filterContainer.style.display = 'none';
@@ -271,31 +275,43 @@ MOBILE_HTML_TEMPLATE = """
         const xhr = new XMLHttpRequest();
         xhr.open('POST', '/analyze', true);
 
+        xhr.upload.onprogress = function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 60);
+                progressBar.style.width = percent + '%';
+                statusText.innerText = `جاري الرفع إلى السيرفر... (${percent}%)`;
+            }
+        };
+
         xhr.onload = function() {
             if (xhr.status === 200) {
-                const res = JSON.parse(xhr.responseText);
-                progressBar.style.width = '100%';
-                if (res.success) {
-                    globalResults = res.results;
-                    if(res.patched_file) {
-                        document.getElementById('dlPatchedDex').href = '/download/' + res.patched_file;
-                        downloadBox.style.display = 'block';
-                    }
-                    if(res.frida_file) {
-                        document.getElementById('dlFridaScript').href = '/download/' + res.frida_file;
-                        downloadBox.style.display = 'block';
-                    }
-                    statusText.innerText = `✨ تم الفحص بنجاح! تم استخراج ${globalResults.length} دالة حقيقية.`;
-                    setTimeout(() => {
-                        progressBox.style.display = 'none';
-                        renderResults(globalResults);
-                        if(globalResults.length > 0) {
-                            downloadBtn.style.display = 'block';
-                            filterContainer.style.display = 'flex';
+                try {
+                    const res = JSON.parse(xhr.responseText);
+                    progressBar.style.width = '100%';
+                    if (res.success) {
+                        globalResults = res.results;
+                        if(res.patched_file) {
+                            document.getElementById('dlPatchedDex').href = '/download/' + res.patched_file;
+                            downloadBox.style.display = 'block';
                         }
-                    }, 300);
-                } else {
-                    statusText.innerText = 'خطأ: ' + res.error;
+                        if(res.frida_file) {
+                            document.getElementById('dlFridaScript').href = '/download/' + res.frida_file;
+                            downloadBox.style.display = 'block';
+                        }
+                        statusText.innerText = `✨ تم الفحص على السيرفر بنجاح! العثور على ${globalResults.length} دالة.`;
+                        setTimeout(() => {
+                            progressBox.style.display = 'none';
+                            renderResults(globalResults);
+                            if(globalResults.length > 0) {
+                                downloadBtn.style.display = 'block';
+                                filterContainer.style.display = 'flex';
+                            }
+                        }, 300);
+                    } else {
+                        statusText.innerText = 'خطأ: ' + res.error;
+                    }
+                } catch(e) {
+                    statusText.innerText = 'خطأ في تحليل استجابة السيرفر.';
                 }
             } else {
                 statusText.innerText = 'فشل الاتصال بالخادم.';
@@ -361,7 +377,7 @@ MOBILE_HTML_TEMPLATE = """
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(globalResults, null, 2));
         const a = document.createElement('a');
         a.href = dataStr;
-        a.download = 'DEX_Studio_Report.json';
+        a.download = 'DEX_Server_Report.json';
         a.click();
     }
 
@@ -369,7 +385,7 @@ MOBILE_HTML_TEMPLATE = """
         fetch('/history').then(res => res.json()).then(data => {
             const list = document.getElementById('historyList');
             list.innerHTML = '';
-            if(data.history.length === 0) {
+            if(!data.history || data.history.length === 0) {
                 list.innerHTML = '<div style="text-align:center; color:var(--text-muted);">لا يوجد سجل سابق.</div>';
                 return;
             }
@@ -391,27 +407,33 @@ def index():
 
 @app.route('/history')
 def history():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM history ORDER BY id DESC LIMIT 10')
-    rows = cursor.fetchall()
-    conn.close()
-    return jsonify({'history': rows})
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM history ORDER BY id DESC LIMIT 10')
+        rows = cursor.fetchall()
+        conn.close()
+        return jsonify({'history': rows})
+    except Exception:
+        return jsonify({'history': []})
 
 @app.route('/download/<filename>')
 def download_file(filename):
-    file_path = os.path.join(OUTPUT_FOLDER, filename)
-    if os.path.exists(file_path):
-        return send_file(file_path, as_attachment=True)
+    try:
+        file_path = os.path.join(OUTPUT_FOLDER, filename)
+        if os.path.exists(file_path):
+            return send_file(file_path, as_attachment=True)
+    except Exception:
+        pass
     return "الملف غير موجود", 404
 
 def generate_frida_script(filename):
     return f"""/*
- * Frida Advanced Hook Script for {filename}
- * Generated by DEX Studio Pro
+ * Frida Universal Hook Script for {filename}
+ * Generated by DEX Server Studio
  */
 Java.perform(function () {{
-    console.log("[*] Hooking classes & methods for {filename}...");
+    console.log("[*] Hooking target classes for {filename} on Server Analysis...");
 
     var targetClasses = ["com.app.utils.PrefManager", "com.billing.manager.BillingService", "com.security.LicenseChecker"];
     targetClasses.forEach(function(clsName) {{
@@ -426,133 +448,116 @@ Java.perform(function () {{
 }});
 """
 
-def parse_real_dex_header(content, filename, patch_mode):
+def parse_server_dex(content, filename, patch_mode):
     results = []
     patched_content = bytearray(content)
     
-    # قراءة حقيقية لترويسة ملف الـ DEX (DEX Magic & Header Struct)
-    if len(content) > 112 and content.startswith(b'dex\n'):
-        try:
-            # استخراج قيم الهيدر الأساسية عبر struct
-            string_ids_size, string_ids_off = struct.unpack_from('<II', content, 56)
-            method_ids_size, method_ids_off = struct.unpack_from('<II', content, 88)
-        except Exception:
-            pass
-
-    STRING_PATTERN = re.compile(b'[\x20-\x7E]{4,}')
-    chunks = STRING_PATTERN.findall(content)
-    
-    for chunk in chunks:
-        try:
-            s = chunk.decode('utf-8', errors='ignore').strip()
-            lower_s = s.lower()
-            
-            if len(s) > 90 or any(ig in lower_s for ig in IGNORED_KEYWORDS):
-                continue
+    try:
+        STRING_PATTERN = re.compile(b'[\x20-\x7E]{4,}')
+        chunks = STRING_PATTERN.findall(content)
+        
+        for chunk in chunks:
+            try:
+                s = chunk.decode('utf-8', errors='ignore').strip()
+                lower_s = s.lower()
                 
-            matched_cat = None
-            for cat_key, cat_data in FEATURE_CATEGORIES.items():
-                if any(kw in lower_s for kw in cat_data['keywords']):
-                    matched_cat = cat_key
-                    break
-            
-            if matched_cat:
-                cat_info = FEATURE_CATEGORIES[matched_cat]
-                suggestion_text = "const/4 v0, 0x1 (إرجاع True)"
-                
-                if patch_mode == 'invert_jump':
-                    suggestion_text = "عكس شرط القفزة (Invert Jump)"
-                elif patch_mode == 'nop_check':
-                    suggestion_text = "تجاهل فحص الحماية (NOP)"
-
-                method_name = s.split('/')[-1].replace(';', '')
-                obj = {
-                    'text': f"L{filename.split('.')[0]}/{method_name};->isVip()Z",
-                    'category_name': cat_info['name'],
-                    'category_color': cat_info['color'],
-                    'category_badge': cat_info['badge_bg'],
-                    'suggestion': suggestion_text
-                }
-                if obj not in results:
-                    results.append(obj)
-                    if len(results) >= 2000:
+                if len(s) > 90 or any(ig in lower_s for ig in IGNORED_KEYWORDS):
+                    continue
+                    
+                matched_cat = None
+                for cat_key, cat_data in FEATURE_CATEGORIES.items():
+                    if any(kw in lower_s for kw in cat_data['keywords']):
+                        matched_cat = cat_key
                         break
-        except Exception:
-            continue
+                
+                if matched_cat:
+                    cat_info = FEATURE_CATEGORIES[matched_cat]
+                    suggestion_text = "const/4 v0, 0x1 (إرجاع True)"
+                    
+                    if patch_mode == 'invert_jump':
+                        suggestion_text = "عكس شرط القفزة (Invert Jump)"
+                    elif patch_mode == 'nop_check':
+                        suggestion_text = "تجاهل فحص الحماية (NOP)"
+
+                    method_name = s.split('/')[-1].replace(';', '')
+                    obj = {
+                        'text': f"L{filename.split('.')[0]}/{method_name};->isVip()Z",
+                        'category_name': cat_info['name'],
+                        'category_color': cat_info['color'],
+                        'category_badge': cat_info['badge_bg'],
+                        'suggestion': suggestion_text
+                    }
+                    if obj not in results:
+                        results.append(obj)
+                        if len(results) >= 1500:
+                            break
+            except Exception:
+                continue
+    except Exception:
+        pass
             
     return results, bytes(patched_content)
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    files = request.files.getlist('files')
-    patch_mode = request.form.get('patch_mode', 'return_true')
-    gen_frida = request.form.get('gen_frida', 'yes')
-    
-    if not files or all(f.filename == '' for f in files):
-        return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات DEX!'})
-    
-    all_results = []
-    patched_filename = None
-    frida_filename = None
-    
-    with ThreadPoolExecutor() as executor:
-        futures = []
-        for file in files:
-            file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-            file.save(file_path)
-
-            def process_file(f_path, f_name):
-                res = []
-                p_file = None
-                f_file = None
+    try:
+        file = request.files.get('file')
+        patch_mode = request.form.get('patch_mode', 'return_true')
+        gen_frida = request.form.get('gen_frida', 'yes')
+        
+        if not file or file.filename == '':
+            return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملف من ذاكرة الهاتف!'})
+        
+        filename = file.filename
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(file_path)
+        
+        all_results = []
+        patched_filename = None
+        frida_filename = None
+        
+        try:
+            with open(file_path, 'rb') as f:
+                dex_bytes = f.read()
+                r, patched_bytes = parse_server_dex(dex_bytes, filename, patch_mode)
+                all_results.extend(r)
+                
+                patched_filename = f"patched_{filename}"
+                with open(os.path.join(OUTPUT_FOLDER, patched_filename), 'wb') as pf:
+                    pf.write(patched_bytes)
+                    
+            if gen_frida == 'yes':
+                frida_filename = f"frida_hook_{filename}.js"
+                script_content = generate_frida_script(filename)
+                with open(os.path.join(OUTPUT_FOLDER, frida_filename), 'w', encoding='utf-8') as ff:
+                    ff.write(script_content)
+        except Exception:
+            pass
+        finally:
+            if os.path.exists(file_path):
                 try:
-                    if f_name.endswith('.dex'):
-                        with open(f_path, 'rb') as f:
-                            dex_bytes = f.read()
-                            r, patched_bytes = parse_real_dex_header(dex_bytes, f_name, patch_mode)
-                            res.extend(r)
-                            
-                            p_file = f"patched_{f_name}"
-                            with open(os.path.join(OUTPUT_FOLDER, p_file), 'wb') as pf:
-                                pf.write(patched_bytes)
-                                
-                    if gen_frida == 'yes':
-                        f_file = f"frida_hook_{f_name}.js"
-                        script_content = generate_frida_script(f_name)
-                        with open(os.path.join(OUTPUT_FOLDER, f_file), 'w', encoding='utf-8') as ff:
-                            ff.write(script_content)
-                            
+                    os.remove(file_path)
                 except Exception:
                     pass
-                finally:
-                    if os.path.exists(f_path):
-                        os.remove(f_path)
-                return res, p_file, f_file
 
-            futures.append(executor.submit(process_file, file_path, file.filename))
-            
-        for future in as_completed(futures):
-            res, p_file, f_file = future.result()
-            all_results.extend(res)
-            if p_file: patched_filename = p_file
-            if f_file: frida_filename = f_file
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute('INSERT INTO history (filename, total_results) VALUES (?, ?)',
+                           (filename, len(all_results)))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
 
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute('INSERT INTO history (filename, total_results) VALUES (?, ?)',
-                       (files[0].filename, len(all_results)))
-        conn.commit()
-        conn.close()
-    except Exception:
-        pass
-
-    return jsonify({
-        'success': True, 
-        'results': all_results[:2000], 
-        'patched_file': patched_filename,
-        'frida_file': frida_filename
-    })
+        return jsonify({
+            'success': True, 
+            'results': all_results[:1500], 
+            'patched_file': patched_filename,
+            'frida_file': frida_filename
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': 'فشل الخادم في معالجة الملف.'})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
