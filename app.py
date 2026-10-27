@@ -8,21 +8,21 @@ app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# نمط دقيق لالتقاط السلاسل النصية المفيدة في ملفات الـ DEX
+# تعبيرات منتظمة محسنة لاستخراج النصوص والسلاسل البرمجية داخل ملفات الـ DEX
 STRING_PATTERN = re.compile(b'[\x20-\x7E]{4,}')
 
-# الكلمات المفتاحية المركزة حصرياً على فتح الميزات المدفوعة والاشتراكات
+# الكلمات المفتاحية المستهدفة لفتح المميزات المدفوعة والـ VIP
 TARGET_KEYWORDS = [
     'isvip', 'ispro', 'ispremium', 'issubscribed', 'hasaccess', 
     'premium_subscription', 'vip_status', 'pro_status', 'checklicense',
     'is_vip', 'is_pro', 'is_premium', 'unlock_all', 'purchased',
-    'subs', 'subscription', 'proversion', 'vipversion', 'unlocked'
+    'subscription', 'license_key', 'pro_version', 'vip_user'
 ]
 
-# كلمات مستبعدة لتجنب المكتبات الخارجية والإعلانات
+# الكلمات المستبعدة لتجنب الإعلانات والخدمات الخارجية غير المطلوبة
 IGNORED_KEYWORDS = [
-    'applovin', 'firebase', 'google', 'ads', 'facebook', 'adjust', 
-    'ironsource', 'unity', 'appsflyer', 'analytics', 'crashlytics'
+    'applovin', 'firebase', 'google', 'ads', 'facebook', 
+    'adjust', 'ironsource', 'unityads', 'admob', 'analytics'
 ]
 
 HTML_PAGE = """
@@ -31,7 +31,7 @@ HTML_PAGE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>محلل دوال فتح المميزات الكاملة | VIP & Pro</title>
+    <title>محلل دوال VIP & Pro المطور | النسخة الاحترافية</title>
     <style>
         :root {
             --bg-color: #0d1117;
@@ -43,46 +43,50 @@ HTML_PAGE = """
             --text-muted: #8b949e;
         }
         body { font-family: system-ui, -apple-system, Tahoma, sans-serif; background-color: var(--bg-color); color: var(--text-main); padding: 20px; margin: 0; text-align: center; }
-        .container { max-width: 800px; background: var(--card-bg); padding: 25px; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: 0 8px 24px rgba(0,0,0,0.5); margin: auto; }
-        h2 { color: var(--gold); font-size: 1.5rem; margin-bottom: 5px; font-weight: 800; }
+        .container { max-width: 850px; background: var(--card-bg); padding: 25px; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: 0 8px 24px rgba(0,0,0,0.5); margin: auto; }
+        h2 { color: var(--gold); font-size: 1.6rem; margin-bottom: 5px; font-weight: 800; letter-spacing: -0.5px; }
         p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; }
         
-        .file-box { border: 2px dashed var(--gold); padding: 20px; border-radius: 12px; margin: 15px 0; background: rgba(240, 180, 41, 0.03); }
-        input[type="file"] { color: var(--text-main); width: 100%; font-size: 0.9rem; cursor: pointer; }
+        .file-box { border: 2px dashed var(--gold); padding: 25px; border-radius: 12px; margin: 15px 0; background: rgba(240, 180, 41, 0.03); transition: background 0.3s; }
+        .file-box:hover { background: rgba(240, 180, 41, 0.06); }
+        input[type="file"] { color: var(--text-main); width: 100%; font-size: 0.95rem; cursor: pointer; }
         
         .btn-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 15px; }
-        button { background: var(--gold); color: #000; border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; flex: 1; font-size: 0.95rem; min-width: 130px; transition: all 0.2s; }
-        button:hover { background: var(--gold-hover); }
-        button.btn-danger { background: #da3633; color: #fff; }
-        button.btn-success { background: #2ea043; color: #fff; }
+        button { background: var(--gold); color: #000; border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; flex: 1; font-size: 0.95rem; min-width: 130px; transition: all 0.2s; box-shadow: 0 4px 12px rgba(240,180,41,0.2); }
+        button:hover { background: var(--gold-hover); transform: translateY(-1px); }
+        button.btn-danger { background: #da3633; color: #fff; box-shadow: 0 4px 12px rgba(218,54,51,0.2); }
+        button.btn-danger:hover { background: #b62324; }
+        button.btn-success { background: #2ea043; color: #fff; box-shadow: 0 4px 12px rgba(46,160,67,0.2); }
+        button.btn-success:hover { background: #238636; }
         
         #progress-container { width: 100%; background: #21262d; border-radius: 8px; margin-top: 20px; overflow: hidden; display: none; border: 1px solid var(--border-color); }
-        #progress-bar { width: 0%; height: 24px; background: linear-gradient(90deg, #f0b429, #ffd369); text-align: center; color: #000; font-weight: bold; font-size: 0.85rem; line-height: 24px; }
-        #status { margin-top: 10px; color: var(--gold); font-size: 0.9rem; font-weight: 600; }
+        #progress-bar { width: 0%; height: 24px; background: linear-gradient(90deg, #f0b429, #ffd369); text-align: center; color: #000; font-weight: bold; font-size: 0.85rem; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); line-height: 24px; }
+        #status { margin-top: 12px; color: var(--gold); font-size: 0.95rem; font-weight: 600; }
         
-        .search-box { width: 100%; padding: 12px; margin-top: 15px; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; box-sizing: border-box; display: none; font-size: 0.95rem; outline: none; }
+        .search-box { width: 100%; padding: 12px; margin-top: 15px; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; box-sizing: border-box; display: none; font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
+        .search-box:focus { border-color: var(--gold); }
         
-        #methods-list { text-align: left; background: #010409; padding: 15px; border-radius: 10px; margin-top: 15px; max-height: 450px; overflow-y: auto; direction: ltr; display: none; border: 1px solid var(--border-color); }
-        .method-card { background: var(--card-bg); padding: 12px; margin-bottom: 10px; border-radius: 8px; border-left: 5px solid var(--gold); font-family: monospace; font-size: 0.85rem; border: 1px solid var(--border-color); }
+        #methods-list { text-align: left; background: #010409; padding: 15px; border-radius: 10px; margin-top: 15px; max-height: 480px; overflow-y: auto; direction: ltr; display: none; border: 1px solid var(--border-color); }
+        .method-card { background: var(--card-bg); padding: 12px; margin-bottom: 12px; border-radius: 8px; border-left: 5px solid var(--gold); font-family: monospace; font-size: 0.85rem; border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); }
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .badge { padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; background: rgba(240,180,41,0.15); color: var(--gold); border: 1px solid rgba(240,180,41,0.3); }
         .item-text { color: #58a6ff; word-break: break-all; font-weight: bold; }
         .suggestion-box { background: #0d1117; padding: 8px 10px; margin-top: 8px; border-radius: 6px; color: #3fb950; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center; border: 1px dashed rgba(63, 185, 80, 0.4); }
-        .copy-btn { background: #21262d; color: var(--text-main); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; }
-        .copy-btn:hover { background: var(--gold); color: #000; }
+        .copy-btn { background: #21262d; color: var(--text-main); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; transition: background 0.2s; }
+        .copy-btn:hover { background: var(--gold); color: #000; border-color: var(--gold); }
     </style>
 </head>
 <body>
 <div class="container">
-    <h2>محلل دوال فتح المميزات الكاملة</h2>
-    <p>ارفع ملفات الـ DEX أو APK لاستخراج دوال الـ VIP والاشتراكات بدقة عالية:</p>
+    <h2>محلل دوال فتح المميزات الكاملة (DEX & APK)</h2>
+    <p>قم برفع ملفات الـ DEX أو حزم الـ APK للتحليل واستخراج دوال التحقق والتعديل المقترح:</p>
     
     <div class="file-box">
-        <input type="file" id="dexFiles" multiple>
+        <input type="file" id="dexFiles" multiple accept=".dex,.apk,.zip">
     </div>
 
     <div class="btn-group">
-        <button onclick="uploadAndAnalyze()">بدء الفحص الذكي</button>
+        <button onclick="uploadAndAnalyze()">بدء التحليل الفوري</button>
         <button class="btn-success" id="downloadBtn" onclick="downloadTxt()" style="display:none;">تحميل النتائج TXT</button>
         <button class="btn-danger" onclick="clearAll()">إعادة ضبط</button>
     </div>
@@ -92,7 +96,7 @@ HTML_PAGE = """
     </div>
     <div id="status"></div>
 
-    <input type="text" id="filterInput" class="search-box" placeholder="🔍 تصفية النتائج..." onkeyup="filterMethods()">
+    <input type="text" id="filterInput" class="search-box" placeholder="🔍 تصفية النتائج الذكية..." onkeyup="filterMethods()">
     
     <div id="methods-list"></div>
 </div>
@@ -122,7 +126,7 @@ HTML_PAGE = """
         progressContainer.style.display = 'block';
         progressBar.style.width = '0%';
         progressBar.innerText = '0%';
-        statusDiv.innerText = 'جاري رفع الملفات...';
+        statusDiv.innerText = 'جاري رفع الملفات ومعالجتها...';
         listDiv.style.display = 'none';
         listDiv.innerHTML = '';
         downloadBtn.style.display = 'none';
@@ -136,6 +140,7 @@ HTML_PAGE = """
                 const percentComplete = Math.round((e.loaded / e.total) * 45);
                 progressBar.style.width = percentComplete + '%';
                 progressBar.innerText = percentComplete + '%';
+                statusDiv.innerText = `جاري الرفع... (${percentComplete}%)`;
             }
         };
 
@@ -145,7 +150,7 @@ HTML_PAGE = """
                 currentProgress += 15;
                 progressBar.style.width = currentProgress + '%';
                 progressBar.innerText = currentProgress + '%';
-                statusDiv.innerText = `⚡ جارٍ تحليل وفلترة ملفات DEX... (${currentProgress}%)`;
+                statusDiv.innerText = `⚡ جارٍ الفحص العميق واستخراج دوال التميز... (${currentProgress}%)`;
             }
         }, 80);
 
@@ -159,17 +164,19 @@ HTML_PAGE = """
                     
                     if (result.success) {
                         allResults = result.methods;
-                        statusDiv.innerText = `✨ تم الانتهاء بنجاح! العثور على ${allResults.length} دالة مطابقة للمميزات الكاملة.`;
+                        statusDiv.innerText = `✨ تم الانتهاء بنجاح! العثور على ${allResults.length} دالة مطابقة.`;
                         if (allResults.length > 0) {
                             renderMethods(allResults);
                             downloadBtn.style.display = 'inline-block';
                             filterInput.style.display = 'block';
                         } else {
                             listDiv.style.display = 'block';
-                            listDiv.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">لم يتم العثور على دوال مطابقة.</div>';
+                            listDiv.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">لم يتم العثور على دوال مطابقة للمعايير.</div>';
                         }
                     } else {
-                        statusDiv.innerText = 'حدث خطأ أثناء المعالجة.';
+                        statusDiv.innerText = 'حدث خطأ أثناء معالجة البيانات.';
+                        listDiv.style.display = 'block';
+                        listDiv.innerHTML = `<div style="color:#da3633; padding:10px;">خطأ: ${result.error}</div>`;
                     }
                 } catch (err) {
                     statusDiv.innerText = 'خطأ في قراءة استجابة الخادم.';
@@ -180,10 +187,6 @@ HTML_PAGE = """
         };
 
         xhr.send(formData);
-    }
-
-    fn renderMethods(resultsArray) {
-        // تم تصحيح بناء الوظيفة
     }
 
     function renderMethods(resultsArray) {
@@ -197,7 +200,7 @@ HTML_PAGE = """
             
             card.innerHTML = `
                 <div class="card-header">
-                    <span class="badge">💎 دالة فتح المميزات</span>
+                    <span class="badge">💎 دالة مميزات مفعلة</span>
                     <button class="copy-btn" onclick="copyText('${item.text.replace(/'/g, "\\\\'")}', this)">نسخ النص</button>
                 </div>
                 <div class="item-text">${item.text}</div>
@@ -214,7 +217,13 @@ HTML_PAGE = """
         navigator.clipboard.writeText(text).then(() => {
             const originalText = btnElement.innerText;
             btnElement.innerText = 'تم النسخ!';
-            setTimeout(() => { btnElement.innerText = originalText; }, 1500);
+            btnElement.style.background = 'var(--gold)';
+            btnElement.style.color = '#000';
+            setTimeout(() => { 
+                btnElement.innerText = originalText;
+                btnElement.style.background = '';
+                btnElement.style.color = '';
+            }, 1500);
         });
     }
 
@@ -230,7 +239,7 @@ HTML_PAGE = """
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'Unlock_Features_Methods.txt';
+        a.download = 'Unlocked_Features_Methods.txt';
         a.click();
     }
 
@@ -242,6 +251,7 @@ HTML_PAGE = """
         document.getElementById('progress-container').style.display = 'none';
         document.getElementById('downloadBtn').style.display = 'none';
         document.getElementById('filterInput').style.display = 'none';
+        document.getElementById('filterInput').value = '';
         allResults = [];
     }
 </script>
@@ -261,18 +271,17 @@ def process_dex_content(content, filename):
             s = chunk.decode('utf-8', errors='ignore').strip()
             lower_s = s.lower()
             
-            # التحقق من أن النص يحتوي على الكلمات المستهدفة للمميزات حصرياً ولا يتبع مكتبات خارجية
             if any(kw in lower_s for kw in TARGET_KEYWORDS):
                 if not any(ig in lower_s for ig in IGNORED_KEYWORDS):
-                    if len(s) < 60:  # تقييد الطول لضمان جودة النصوص المستخرجة
+                    if len(s) < 80:
                         result_obj = {
                             'file': filename,
                             'text': f"[{filename}] {s}",
-                            'suggestion': 'const/4 v0, 0x1 (إرجاع True لتفعيل المميزات)'
+                            'suggestion': 'const/4 v0, 0x1 (تعديل القيمة إلى True لفتح المميزات)'
                         }
                         if result_obj not in matched:
                             matched.append(result_obj)
-                            if len(matched) >= 400:
+                            if len(matched) >= 1000:
                                 break
         except Exception:
             continue
@@ -286,14 +295,14 @@ def process_single_file(file):
     file_results = []
     
     try:
-        if file.filename.endswith('.apk') or zipfile.is_zipfile(file_path):
+        if file.filename.endswith('.apk') or file.filename.endswith('.zip') or zipfile.is_zipfile(file_path):
             with zipfile.ZipFile(file_path, 'r') as z:
                 dex_files = [name for name in z.namelist() if name.endswith('.dex')]
                 with ThreadPoolExecutor() as executor:
                     futures = {executor.submit(scan_dex_from_zip, file_path, zinfo, file.filename): zinfo for zinfo in dex_files}
                     for future in as_completed(futures):
                         file_results.extend(future.result())
-        else:
+        elif file.filename.endswith('.dex'):
             with open(file_path, "rb") as f:
                 content = f.read()
             file_results.extend(process_dex_content(content, file.filename))
@@ -324,6 +333,7 @@ def analyze():
     
     all_matched_results = []
     
+    # المعالجة بالتوازي للتعامل مع ملفات متعددة بكفاءة وسرعة فائقة
     with ThreadPoolExecutor() as executor:
         futures = [executor.submit(process_single_file, file) for file in files]
         for future in as_completed(futures):
@@ -332,7 +342,7 @@ def analyze():
             except Exception:
                 pass
 
-    return jsonify({'success': True, 'methods': all_matched_results[:1500]})
+    return jsonify({'success': True, 'methods': all_matched_results[:3000]})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
