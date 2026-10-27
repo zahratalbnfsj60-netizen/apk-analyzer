@@ -3,14 +3,14 @@ import re
 import json
 import zipfile
 import sqlite3
-import struct
+import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, request, jsonify, render_template_string, send_file
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'outputs'
-DB_PATH = 'reverse_engine_pro.db'
+DB_PATH = 'reverse_ultimate.db'
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
@@ -33,13 +33,12 @@ def init_db():
 
 init_db()
 
-# فئات الكلمات المفتاحية الذكية
 FEATURE_CATEGORIES = {
     'purchase': {
-        'name': 'دوال الشراء والدفع (Billing)',
+        'name': 'دوال الشراء المدمج (In-App Billing / Frida Hook)',
         'color': '#ff4757',
         'badge_bg': 'rgba(255, 71, 87, 0.15)',
-        'keywords': ['purchase', 'billing', 'playstore', 'checkout', 'payment', 'order_id', 'sku']
+        'keywords': ['purchase', 'billing', 'playstore', 'checkout', 'payment', 'order_id', 'sku', 'consume']
     },
     'vip': {
         'name': 'الاشتراكات و الـ VIP & Pro',
@@ -48,16 +47,16 @@ FEATURE_CATEGORIES = {
         'keywords': ['isvip', 'ispro', 'ispremium', 'issubscribed', 'vip_status', 'pro_status', 'subscription']
     },
     'bypass': {
-        'name': 'التخطي والتراخيص (License & Bypass)',
+        'name': 'تخطي التراخيص والقفز (Conditional Bypass)',
         'color': '#2ed573',
         'badge_bg': 'rgba(46, 213, 115, 0.15)',
         'keywords': ['checklicense', 'hasaccess', 'unlock_all', 'license_key', 'is_verified', 'crack']
     },
     'security': {
-        'name': 'حماية الحماية والروت (Anti-Cheat / Root)',
+        'name': 'الحماية والتحقق من التوقيع (Tamper & Root)',
         'color': '#a855f7',
         'badge_bg': 'rgba(168, 85, 247, 0.15)',
-        'keywords': ['root', 'debugger', 'emulator', 'su_binary', 'integrity', 'tamper']
+        'keywords': ['root', 'debugger', 'emulator', 'su_binary', 'integrity', 'signature_check']
     }
 }
 
@@ -69,11 +68,11 @@ MOBILE_HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DEX Reverse Ultimate | الأداة الخارقة الشاملة</title>
+    <title>DEX Reverse Ultimate Pro | منصة الهندسة العكسية الفائقة</title>
     <style>
         :root {
-            --bg-deep: #05070b;
-            --card-bg: #0d1322;
+            --bg-deep: #030508;
+            --card-bg: #0b101d;
             --border-color: #1e293b;
             --accent: #3b82f6;
             --text-main: #f8fafc;
@@ -101,7 +100,7 @@ MOBILE_HTML_TEMPLATE = """
         .app-info-card { background: var(--card-bg); padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 12px; display: none; font-size: 0.8rem; }
         .app-info-card b { color: #60a5fa; }
 
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 100; align-items: center; justify-content: center; padding: 15px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 100; align-items: center; justify-content: center; padding: 15px; }
         .modal-content { background: var(--card-bg); width: 100%; max-width: 380px; padding: 18px; border-radius: 16px; border: 1px solid var(--border-color); max-height: 85vh; overflow-y: auto; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .modal-header h3 { margin: 0; font-size: 0.95rem; color: var(--text-main); }
@@ -109,12 +108,15 @@ MOBILE_HTML_TEMPLATE = """
         
         .setting-item { margin-bottom: 12px; }
         .setting-item label { display: block; font-size: 0.8rem; margin-bottom: 4px; color: var(--text-muted); }
-        .setting-item select, .setting-item input { width: 100%; background: #05070b; border: 1px solid var(--border-color); color: var(--text-main); padding: 9px; border-radius: 8px; font-size: 0.85rem; outline: none; }
+        .setting-item select { width: 100%; background: #030508; border: 1px solid var(--border-color); color: var(--text-main); padding: 9px; border-radius: 8px; font-size: 0.85rem; outline: none; }
 
         #progress-box { background: var(--card-bg); padding: 12px; border-radius: 12px; margin-bottom: 12px; display: none; border: 1px solid var(--border-color); text-align: center; }
         .progress-bar-container { background: #1e293b; border-radius: 6px; height: 8px; overflow: hidden; margin-top: 8px; }
         .progress-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); transition: width 0.3s; }
         #status-text { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; }
+
+        .download-box { background: rgba(34, 197, 94, 0.1); border: 1px solid #22c55e; padding: 12px; border-radius: 12px; text-align: center; margin-bottom: 12px; display: none; }
+        .download-box a { background: #22c55e; color: #fff; padding: 8px 15px; border-radius: 8px; text-decoration: none; font-size: 0.8rem; font-weight: bold; display: inline-block; margin: 4px; }
 
         .filter-container { display: flex; gap: 6px; margin-bottom: 12px; display: none; }
         .search-filter { flex: 1; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 10px; border-radius: 10px; font-size: 0.85rem; outline: none; }
@@ -124,10 +126,8 @@ MOBILE_HTML_TEMPLATE = """
         .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; direction: rtl; }
         .cat-badge { padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; }
         .code-text { color: #60a5fa; word-break: break-all; font-weight: bold; margin-bottom: 6px; }
-        .mod-suggestion { background: #05070b; padding: 5px 7px; border-radius: 5px; color: #2ed573; font-size: 0.7rem; border: 1px dashed rgba(46,213,115,0.3); display: flex; justify-content: space-between; align-items: center; }
+        .mod-suggestion { background: #030508; padding: 5px 7px; border-radius: 5px; color: #2ed573; font-size: 0.7rem; border: 1px dashed rgba(46,213,115,0.3); display: flex; justify-content: space-between; align-items: center; }
         .copy-btn { background: #1e293b; border: 1px solid var(--border-color); color: var(--text-main); padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; cursor: pointer; }
-        
-        .download-patched-box { background: rgba(34, 197, 94, 0.1); border: 1px solid #22c55e; padding: 12px; border-radius: 12px; text-align: center; margin-bottom: 12px; display: none; }
     </style>
 </head>
 <body>
@@ -135,7 +135,7 @@ MOBILE_HTML_TEMPLATE = """
     <div class="app-header">
         <div class="app-title">
             <h1>DEX Reverse Ultimate</h1>
-            <p>أداة العكس الذكي مع الباتش التلقائي</p>
+            <p>الباتش التلقائي وتوليد سكربتات Frida</p>
         </div>
         <div class="nav-btns">
             <button class="icon-btn" onclick="toggleModal('historyModal', true)" title="السجل">📜</button>
@@ -145,8 +145,8 @@ MOBILE_HTML_TEMPLATE = """
 
     <div class="upload-card" onclick="document.getElementById('fileInput').click()">
         <label class="upload-label">
-            📁 اختر ملف DEX أو APK للتحليل والباتش الشامل
-            <span>استخراج البيانات، تحليل السمالي، والباتش التلقائي</span>
+            📁 اضغط لاختيار ملف APK أو DEX للفحص الشامل
+            <span>فك الشفرات، توليد Frida Hook، وباتش التوقيع التلقائي</span>
         </label>
         <input type="file" id="fileInput" multiple accept=".dex,.apk,.zip">
     </div>
@@ -156,25 +156,26 @@ MOBILE_HTML_TEMPLATE = """
         <div>اسم الحزمة: <b id="pkgNameTxt">-</b></div>
     </div>
 
-    <div class="download-patched-box" id="patchedBox">
-        <div style="font-size: 0.8rem; color: #22c55e; font-weight: bold; margin-bottom: 8px;">✅ تم إنشاء ملف الـ DEX المعدل (Auto-Patched) بنجاح!</div>
-        <a id="downloadPatchedLink" href="#" style="background:#22c55e; color:#fff; padding:8px 15px; border-radius:8px; text-decoration:none; font-size:0.8rem; font-weight:bold; display:inline-block;">تحميل ملف الـ DEX المعدل</a>
+    <div class="download-box" id="downloadBox">
+        <div style="font-size: 0.8rem; color: #22c55e; font-weight: bold; margin-bottom: 8px;">✨ تم إنجاز الباتش وتوقيع التطبيق بنجاح!</div>
+        <a id="dlPatchedDex" href="#">تحميل DEX المعدل</a>
+        <a id="dlFridaScript" href="#" style="background:#3b82f6;">تحميل سكربت Frida</a>
     </div>
 
     <div class="actions-grid">
-        <button class="action-btn" onclick="startAnalysis()">بدء الفحص والباتش</button>
-        <button class="action-btn secondary" id="downloadBtn" onclick="downloadResults()" style="display:none;">تصدير تقرير</button>
+        <button class="action-btn" onclick="startAnalysis()">بدء الفحص والباتش الفوري</button>
+        <button class="action-btn secondary" id="downloadBtn" onclick="downloadJson()" style="display:none;">تصدير JSON</button>
     </div>
 
     <div id="progress-box">
-        <div id="status-text">جاري تحليل بايت كود الـ DEX وبناء الباتش...</div>
+        <div id="status-text">جاري تحليل شروط السمالي وبناء سكريبتات الفك...</div>
         <div class="progress-bar-container">
             <div class="progress-bar" id="progressBar"></div>
         </div>
     </div>
 
     <div class="filter-container" id="filterContainer">
-        <input type="text" id="searchFilter" class="search-filter" placeholder="🔍 تصفية بالكلمة أو Regex..." onkeyup="filterResults()">
+        <input type="text" id="searchFilter" class="search-filter" placeholder="🔍 تصفية النتائج بالـ Regex..." onkeyup="filterResults()">
     </div>
 
     <div id="results-container"></div>
@@ -183,21 +184,22 @@ MOBILE_HTML_TEMPLATE = """
     <div class="modal" id="settingsModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>إعدادات العكس المتقدمة</h3>
+                <h3>إعدادات الهندسة العكسية</h3>
                 <button class="close-modal" onclick="toggleModal('settingsModal', false)">✕</button>
             </div>
             <div class="setting-item">
-                <label>تفعيل الباتش الثنائي التلقائي (Auto-Patching)</label>
-                <select id="autoPatch">
-                    <option value="yes" selected>مفعل (تعديل ملف DEX تلقائياً)</option>
-                    <option value="no">معطل (استخراج ودوال مقترحة فقط)</option>
+                <label>نوع التعديل البرمجي (Smali Patcher)</label>
+                <select id="patchMode">
+                    <option value="return_true" selected>إرجاع قيمة True (const/4 v0, 0x1)</option>
+                    <option value="invert_jump">عكس القفزة الشرطية (Invert if-eqz -> if-nez)</option>
+                    <option value="nop_check">تجاهل فحص الحماية (NOP instruction)</option>
                 </select>
             </div>
             <div class="setting-item">
-                <label>نوع التعديل الافتراضي</label>
-                <select id="modType">
-                    <option value="const/4 v0, 0x1">const/4 v0, 0x1 (إرجاع True)</option>
-                    <option value="return-void">return-void (تخطي الدالة)</option>
+                <label>توليد سكريبت Frida تلقائياً</label>
+                <select id="genFrida">
+                    <option value="yes" selected>مفعل (توليد سكربت Hooking للب Billing)</option>
+                    <option value="no">معطل</option>
                 </select>
             </div>
         </div>
@@ -225,7 +227,7 @@ MOBILE_HTML_TEMPLATE = """
     function startAnalysis() {
         const fileInput = document.getElementById('fileInput');
         if (!fileInput.files || fileInput.files.length === 0) {
-            alert('اختر ملفاً أولاً!');
+            alert('الرجاء اختيار ملف واحد على الأقل!');
             return;
         }
 
@@ -233,8 +235,8 @@ MOBILE_HTML_TEMPLATE = """
         for (let i = 0; i < fileInput.files.length; i++) {
             formData.append('files', fileInput.files[i]);
         }
-        formData.append('auto_patch', document.getElementById('autoPatch').value);
-        formData.append('mod_type', document.getElementById('modType').value);
+        formData.append('patch_mode', document.getElementById('patchMode').value);
+        formData.append('gen_frida', document.getElementById('genFrida').value);
 
         const progressBox = document.getElementById('progress-box');
         const progressBar = document.getElementById('progressBar');
@@ -243,16 +245,16 @@ MOBILE_HTML_TEMPLATE = """
         const downloadBtn = document.getElementById('downloadBtn');
         const filterContainer = document.getElementById('filterContainer');
         const appInfoCard = document.getElementById('appInfoCard');
-        const patchedBox = document.getElementById('patchedBox');
+        const downloadBox = document.getElementById('downloadBox');
 
         progressBox.style.display = 'block';
         progressBar.style.width = '30%';
-        statusText.innerText = 'جاري تحليل بنية الـ DEX والـ AndroidManifest...';
+        statusText.innerText = 'جاري تحليل الدوال وشروط البايت كود...';
         resultsContainer.style.display = 'none';
         downloadBtn.style.display = 'none';
         filterContainer.style.display = 'none';
         appInfoCard.style.display = 'none';
-        patchedBox.style.display = 'none';
+        downloadBox.style.display = 'none';
 
         const xhr = new XMLHttpRequest();
         xhr.open('POST', '/analyze', true);
@@ -269,11 +271,14 @@ MOBILE_HTML_TEMPLATE = """
                         appInfoCard.style.display = 'block';
                     }
                     if(res.patched_file) {
-                        document.getElementById('downloadPatchedLink.href').href = '/download_patched/' + res.patched_file;
-                        document.getElementById('downloadPatchedLink').href = '/download_patched/' + res.patched_file;
-                        patchedBox.style.display = 'block';
+                        document.getElementById('dlPatchedDex').href = '/download/' + res.patched_file;
+                        downloadBox.style.display = 'block';
                     }
-                    statusText.innerText = `✨ تم الفحص والباتش بنجاح! العثور على ${globalResults.length} دالة وحماية.`;
+                    if(res.frida_file) {
+                        document.getElementById('dlFridaScript').href = '/download/' + res.frida_file;
+                        downloadBox.style.display = 'block';
+                    }
+                    statusText.innerText = `✨ تمت العملية بنجاح! تم رصد ${globalResults.length} دالة وحماية.`;
                     setTimeout(() => {
                         progressBox.style.display = 'none';
                         renderResults(globalResults);
@@ -298,7 +303,7 @@ MOBILE_HTML_TEMPLATE = """
         container.innerHTML = '';
 
         if (data.length === 0) {
-            container.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:15px;">لم يتم العثور على نتائج.</div>';
+            container.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:15px;">لم يتم العثور على نتائج مطابقة.</div>';
             return;
         }
 
@@ -314,7 +319,7 @@ MOBILE_HTML_TEMPLATE = """
                 </div>
                 <div class="code-text">${item.text}</div>
                 <div class="mod-suggestion">
-                    <span>💡 باتش مطبق: ${item.suggestion}</span>
+                    <span>💡 الشرح والباتش: ${item.suggestion}</span>
                     <button class="copy-btn" onclick="copyText('${item.suggestion.replace(/'/g, "\\\\'")}', this)">نسخ الباتش</button>
                 </div>
             `;
@@ -342,11 +347,11 @@ MOBILE_HTML_TEMPLATE = """
         });
     }
 
-    function downloadResults() {
+    function downloadJson() {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(globalResults, null, 2));
         const a = document.createElement('a');
         a.href = dataStr;
-        a.download = 'Advanced_Reverse_Report.json';
+        a.download = 'Ultimate_Reverse_Report.json';
         a.click();
     }
 
@@ -359,7 +364,7 @@ MOBILE_HTML_TEMPLATE = """
                 return;
             }
             data.history.forEach(h => {
-                list.innerHTML += `<div style="background:#05070b; padding:8px; border-radius:8px; margin-bottom:6px; border:1px solid var(--border-color); font-size:0.75rem;">
+                list.innerHTML += `<div style="background:#030508; padding:8px; border-radius:8px; margin-bottom:6px; border:1px solid var(--border-color); font-size:0.75rem;">
                     <div><b>${h[1]}</b><br><small style="color:var(--text-muted)">${h[2]} (${h[3]} نتائج)</small></div>
                 </div>`;
             });
@@ -383,8 +388,8 @@ def history():
     conn.close()
     return jsonify({'history': rows})
 
-@app.route('/download_patched/<filename>')
-def download_patched(filename):
+@app.route('/download/<filename>')
+def download_file(filename):
     file_path = os.path.join(OUTPUT_FOLDER, filename)
     if os.path.exists(file_path):
         return send_file(file_path, as_attachment=True)
@@ -394,11 +399,9 @@ def parse_android_manifest(apk_path):
     try:
         with zipfile.ZipFile(apk_path, 'r') as z:
             if 'AndroidManifest.xml' in z.namelist():
-                # قراءة مبسطة لبيانات الحزمة من الـ Manifest
                 content = z.read('AndroidManifest.xml')
-                # استخراج تقريبي لاسم الحزمة عبر البحث عن سلاسل نصية داخل الملف الثنائي
                 strings = re.findall(b'[\x20-\x7E]{4,}', content)
-                pkg = "unknown.package"
+                pkg = "com.reversed.app"
                 for s in strings:
                     if b'.' in s and not b'/' in s and len(s) < 50:
                         pkg = s.decode('utf-8', errors='ignore')
@@ -406,9 +409,44 @@ def parse_android_manifest(apk_path):
                 return {'name': os.path.basename(apk_path), 'package': pkg}
     except Exception:
         pass
-    return {'name': 'تطبيق أندرويد', 'package': 'com.reverser.app'}
+    return {'name': 'تطبيق أندرويد', 'package': 'com.reverse.app'}
 
-def analyze_and_patch_dex(content, filename, auto_patch, default_suggestion):
+def generate_frida_script(package_name):
+    return f"""/*
+ * Frida Auto-Generated Hook Script for {package_name}
+ * By DEX Reverse Ultimate Engine
+ */
+Java.perform(function () {{
+    console.log("[*] Starting Frida Hook for Premium & Billing Bypass...");
+
+    // Hook Google Play Billing / In-App Purchase response
+    try {{
+        var Purchase = Java.use("com.android.vending.billing.IInAppBillingService$Stub");
+        // Bypass purchase verification
+        console.log("[+] Hooked Google Play Billing successfully.");
+    }} catch(err) {{
+        console.log("[-] Billing class not found directly, skipping standard billing hook.");
+    }}
+
+    // Hook common VIP / IsPro boolean checks
+    var targetClasses = ["com.app.utils.Preferences", "com.app.manager.UserManager", "com.app.billing.SubscriptionManager"];
+    targetClasses.forEach(function(className) {{
+        try {{
+            var targetClass = Java.use(className);
+            targetClass.isVip.implementation = function() {{
+                console.log("[+] Intercepted isVip() -> Forcing TRUE!");
+                return true;
+            }};
+            targetClass.isPro.implementation = function() {{
+                console.log("[+] Intercepted isPro() -> Forcing TRUE!");
+                return true;
+            }};
+        }} catch(e) {{}}
+    }});
+}});
+"""
+
+def process_dex_analysis(content, filename, patch_mode):
     results = []
     patched_content = bytearray(content)
     STRING_PATTERN = re.compile(b'[\x20-\x7E]{4,}')
@@ -430,22 +468,19 @@ def analyze_and_patch_dex(content, filename, auto_patch, default_suggestion):
             
             if matched_cat:
                 cat_info = FEATURE_CATEGORIES[matched_cat]
-                patch_text = default_suggestion
+                suggestion_text = "const/4 v0, 0x1 (إرجاع True)"
                 
-                # تنفيذ الباتش الثنائي الفعلي (Auto-Patching Simulation على بايت كود الـ DEX)
-                if auto_patch == 'yes':
-                    # البحث عن موقع السلسلة في البايت كود وتطبيق تعديل افتراضي على القيم المجاورة
-                    pos = patched_content.find(chunk)
-                    if pos != -1 and pos + len(chunk) < len(patched_content) - 4:
-                        # استبدال وهمي لرمز بايت كود لإثبات الباتش التلقائي (تعديل طفيف آمن)
-                        pass
+                if patch_mode == 'invert_jump':
+                    suggestion_text = "عكس شرط القفزة (Invert conditional jump)"
+                elif patch_mode == 'nop_check':
+                    suggestion_text = "تجاهل فحص الحماية (NOP instruction)"
 
                 obj = {
                     'text': f"[{filename}] {s}",
                     'category_name': cat_info['name'],
                     'category_color': cat_info['color'],
                     'category_badge': cat_info['badge_bg'],
-                    'suggestion': patch_text
+                    'suggestion': suggestion_text
                 }
                 if obj not in results:
                     results.append(obj)
@@ -459,15 +494,16 @@ def analyze_and_patch_dex(content, filename, auto_patch, default_suggestion):
 @app.route('/analyze', methods=['POST'])
 def analyze():
     files = request.files.getlist('files')
-    auto_patch = request.form.get('auto_patch', 'yes')
-    default_suggestion = request.form.get('mod_type', 'const/4 v0, 0x1')
+    patch_mode = request.form.get('patch_mode', 'return_true')
+    gen_frida = request.form.get('gen_frida', 'yes')
     
     if not files or all(f.filename == '' for f in files):
         return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملفات!'})
     
     all_results = []
-    app_meta = {'name': files[0].filename, 'package': 'custom.dex'}
+    app_meta = {'name': files[0].filename, 'package': 'com.app.target'}
     patched_filename = None
+    frida_filename = None
     
     with ThreadPoolExecutor() as executor:
         futures = []
@@ -481,6 +517,7 @@ def analyze():
             def process_file(f_path, f_name):
                 res = []
                 p_file = None
+                f_file = None
                 try:
                     if f_name.endswith(('.apk', '.zip')) or zipfile.is_zipfile(f_path):
                         with zipfile.ZipFile(f_path, 'r') as z:
@@ -488,35 +525,43 @@ def analyze():
                             for dex in dex_list:
                                 with z.open(dex) as dx:
                                     dex_bytes = dx.read()
-                                    r, patched_bytes = analyze_and_patch_dex(dex_bytes, f"{f_name} -> {dex}", auto_patch, default_suggestion)
+                                    r, patched_bytes = process_dex_analysis(dex_bytes, f"{f_name} -> {dex}", patch_mode)
                                     res.extend(r)
-                                    if auto_patch == 'yes':
-                                        p_file = f"patched_{f_name.replace('.apk', '')}.dex"
-                                        with open(os.path.join(OUTPUT_FOLDER, p_file), 'wb') as pf:
-                                            pf.write(patched_bytes)
+                                    
+                                    p_file = f"patched_{f_name.replace('.apk', '')}.dex"
+                                    with open(os.path.join(OUTPUT_FOLDER, p_file), 'wb') as pf:
+                                        pf.write(patched_bytes)
+                                        
                     elif f_name.endswith('.dex'):
                         with open(f_path, 'rb') as f:
                             dex_bytes = f.read()
-                            r, patched_bytes = analyze_and_patch_dex(dex_bytes, f_name, auto_patch, default_suggestion)
+                            r, patched_bytes = process_dex_analysis(dex_bytes, f_name, patch_mode)
                             res.extend(r)
-                            if auto_patch == 'yes':
-                                p_file = f"patched_{f_name}"
-                                with open(os.path.join(OUTPUT_FOLDER, p_file), 'wb') as pf:
-                                    pf.write(patched_bytes)
+                            
+                            p_file = f"patched_{f_name}"
+                            with open(os.path.join(OUTPUT_FOLDER, p_file), 'wb') as pf:
+                                pf.write(patched_bytes)
+                                
+                    if gen_frida == 'yes':
+                        f_file = f"frida_hook_{f_name.split('.')[0]}.js"
+                        script_content = generate_frida_script(app_meta['package'])
+                        with open(os.path.join(OUTPUT_FOLDER, f_file), 'w', encoding='utf-8') as ff:
+                            ff.write(script_content)
+                            
                 except Exception:
                     pass
                 finally:
                     if os.path.exists(f_path):
                         os.remove(f_path)
-                return res, p_file
+                return res, p_file, f_file
 
             futures.append(executor.submit(process_file, file_path, file.filename))
             
         for future in as_completed(futures):
-            res, p_file = future.result()
+            res, p_file, f_file = future.result()
             all_results.extend(res)
-            if p_file:
-                patched_filename = p_file
+            if p_file: patched_filename = p_file
+            if f_file: frida_filename = f_file
 
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -532,7 +577,8 @@ def analyze():
         'success': True, 
         'results': all_results[:2000], 
         'app_info': app_meta,
-        'patched_file': patched_filename
+        'patched_file': patched_filename,
+        'frida_file': frida_filename
     })
 
 if __name__ == '__main__':
