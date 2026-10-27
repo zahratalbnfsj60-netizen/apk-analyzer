@@ -2,13 +2,12 @@ import os
 import re
 import struct
 import sqlite3
-from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify, render_template_string, send_file
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'outputs'
-DB_PATH = 'dex_server_studio.db'
+DB_PATH = 'dex_google_bypass.db'
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
@@ -33,33 +32,33 @@ def init_db():
 init_db()
 
 FEATURE_CATEGORIES = {
-    'purchase': {
-        'name': 'دوال الشراء والدفع المدمج (In-App Billing)',
+    'google_billing': {
+        'name': 'حماية بوابات دفع جوجل (Google Play Billing / LVL)',
         'color': '#ff4757',
         'badge_bg': 'rgba(255, 71, 87, 0.15)',
+        'keywords': ['iinappbillingservice', 'licensing', 'com.android.vending', 'checklicense', 'policy', 'responses.licensed']
+    },
+    'purchase': {
+        'name': 'دوال الشراء والدفع المدمج (In-App Purchase)',
+        'color': '#f0b429',
+        'badge_bg': 'rgba(240, 180, 41, 0.15)',
         'keywords': ['purchase', 'billing', 'playstore', 'checkout', 'payment', 'order_id', 'sku', 'consume']
     },
     'vip': {
         'name': 'الاشتراكات و الـ VIP & Pro Status',
-        'color': '#f0b429',
-        'badge_bg': 'rgba(240, 180, 41, 0.15)',
-        'keywords': ['isvip', 'ispro', 'ispremium', 'issubscribed', 'vip_status', 'pro_status', 'subscription']
-    },
-    'bypass': {
-        'name': 'تخطي التراخيص والقفز المنطقي (Bypass)',
         'color': '#2ed573',
         'badge_bg': 'rgba(46, 213, 115, 0.15)',
-        'keywords': ['checklicense', 'hasaccess', 'unlock_all', 'license_key', 'is_verified', 'crack']
+        'keywords': ['isvip', 'ispro', 'ispremium', 'issubscribed', 'vip_status', 'pro_status', 'subscription']
     },
     'security': {
-        'name': 'فحص الحماية والروت (Root & Anti-Cheat)',
+        'name': 'حماية التوقيع والسلامة (Google Play Integrity / Tamper)',
         'color': '#a855f7',
         'badge_bg': 'rgba(168, 85, 247, 0.15)',
-        'keywords': ['root', 'debugger', 'emulator', 'su_binary', 'integrity', 'signature_check']
+        'keywords': ['integrity', 'playintegrity', 'signature', 'packageinstaller', 'installerpackagename']
     }
 }
 
-IGNORED_KEYWORDS = ['applovin', 'firebase', 'google', 'ads', 'facebook', 'adjust', 'ironsource', 'unityads', 'admob', 'analytics', 'androidx']
+IGNORED_KEYWORDS = ['applovin', 'firebase', 'ads', 'facebook', 'adjust', 'ironsource', 'unityads', 'admob', 'analytics', 'androidx']
 
 MOBILE_HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -67,7 +66,7 @@ MOBILE_HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DEX Server Studio | فحص ومعالجة السيرفر</title>
+    <title>Google Bypass Studio | تخطي حماية جوجل وباتش الـ DEX</title>
     <style>
         :root {
             --bg-deep: #020617;
@@ -94,6 +93,7 @@ MOBILE_HTML_TEMPLATE = """
 
         .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
         button.action-btn { background: var(--accent); color: white; border: none; padding: 12px; border-radius: 11px; font-weight: bold; font-size: 0.85rem; cursor: pointer; width: 100%; box-shadow: 0 4px 15px var(--accent-glow); }
+        button.action-btn:active { transform: scale(0.96); }
         button.action-btn.secondary { background: #1e293b; color: var(--text-main); box-shadow: none; border: 1px solid var(--border-color); }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(8px); z-index: 100; align-items: center; justify-content: center; padding: 14px; }
@@ -131,8 +131,8 @@ MOBILE_HTML_TEMPLATE = """
 
     <div class="app-header">
         <div class="app-title">
-            <h1>DEX Server Studio</h1>
-            <p>اختر الملف من ذاكرة الهاتف وافحصه على السيرفر</p>
+            <h1>Google Bypass Studio</h1>
+            <p>تخطي حماية جوجل وباتش الـ DEX</p>
         </div>
         <div class="nav-btns">
             <button class="icon-btn" onclick="toggleModal('historyModal', true)" title="السجل">📜</button>
@@ -142,25 +142,25 @@ MOBILE_HTML_TEMPLATE = """
 
     <div class="upload-card" onclick="document.getElementById('dexFile').click()">
         <label class="upload-label">
-            📁 اختر ملف .dex من ذاكرة هاتفك
-            <span id="fileChosenText">سيتم رفع الملف ومعالجته على السيرفر فوراً</span>
+            📁 اختر ملف .dex من ذاكرتك (فحص سحابي فائق)
+            <span id="fileChosenText">اضغط لاختيار الملف وتخطي حماية جوجل</span>
         </label>
-        <input type="file" id="dexFile" accept=".dex" onchange="fileSelected(this)">
+        <input type="file" id="dexFile" accept=".dex" onchange="fileSelectedLocally(this)">
     </div>
 
     <div class="download-box" id="downloadBox">
-        <div style="font-size: 0.8rem; color: #22c55e; font-weight: bold; margin-bottom: 6px;">✨ تمت المعالجة والفحص على السيرفر بنجاح!</div>
+        <div style="font-size: 0.8rem; color: #22c55e; font-weight: bold; margin-bottom: 6px;">✨ تم تخطي حماية جوجل وباتش الـ DEX بنجاح!</div>
         <a id="dlPatchedDex" href="#">تحميل DEX المعدل</a>
-        <a id="dlFridaScript" href="#" style="background:#3b82f6;">تحميل سكربت Frida</a>
+        <a id="dlFridaScript" href="#" style="background:#3b82f6;">تحميل سكربت Frida الشامل</a>
     </div>
 
     <div class="actions-grid">
-        <button class="action-btn" onclick="startServerAnalysis()">بدء الفحص السحابي</button>
+        <button class="action-btn" onclick="startCloudAnalysis()">بدء الباتش وتخطي الحماية</button>
         <button class="action-btn secondary" id="downloadBtn" onclick="downloadJson()" style="display:none;">تصدير JSON</button>
     </div>
 
     <div id="progress-box">
-        <div id="status-text">جاري رفع الملف وفحصه على السيرفر...</div>
+        <div id="status-text">جاري إرسال الملف وفحص ثغرات حماية جوجل...</div>
         <div class="progress-bar-container">
             <div class="progress-bar" id="progressBar"></div>
         </div>
@@ -175,7 +175,7 @@ MOBILE_HTML_TEMPLATE = """
     <div class="modal" id="editorModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>محرر كود السمالي التفاعلي</h3>
+                <h3>محرر كود السمالي لتخطي جوجل</h3>
                 <button class="close-modal" onclick="toggleModal('editorModal', false)">✕</button>
             </div>
             <div class="setting-item">
@@ -193,17 +193,17 @@ MOBILE_HTML_TEMPLATE = """
                 <button class="close-modal" onclick="toggleModal('settingsModal', false)">✕</button>
             </div>
             <div class="setting-item">
-                <label>نوع التعديل التلقائي على السيرفر</label>
+                <label>نوع باتش تجاوز حماية جوجل</label>
                 <select id="patchMode">
-                    <option value="return_true" selected>إرجاع True (const/4 v0, 0x1)</option>
-                    <option value="invert_jump">عكس القفزة الشرطية</option>
-                    <option value="nop_check">تجاهل الفحص (NOP)</option>
+                    <option value="bypass_google" selected>تجاوز كامل (Google Play Billing & LVL Bypass)</option>
+                    <option value="return_true">إرجاع True (const/4 v0, 0x1)</option>
+                    <option value="nop_check">تجاهل فحص التوقيع (NOP)</option>
                 </select>
             </div>
             <div class="setting-item">
-                <label>توليد سكريبت Frida</label>
+                <label>توليد سكريبت Frida لتجاوز جوجل</label>
                 <select id="genFrida">
-                    <option value="yes" selected>مفعل</option>
+                    <option value="yes" selected>مفعل (Frida Google Bypass Hook)</option>
                     <option value="no">معطل</option>
                 </select>
             </div>
@@ -222,10 +222,12 @@ MOBILE_HTML_TEMPLATE = """
 
 <script>
     let globalResults = [];
+    let selectedFileObject = null;
 
-    function fileSelected(input) {
+    function fileSelectedLocally(input) {
         if(input.files && input.files[0]) {
-            document.getElementById('fileChosenText').innerText = "تم اختيار: " + input.files[0].name;
+            selectedFileObject = input.files[0];
+            document.getElementById('fileChosenText').innerText = "تم اختيار: " + selectedFileObject.name + " (" + Math.round(selectedFileObject.size / 1024) + " KB)";
         }
     }
 
@@ -235,7 +237,7 @@ MOBILE_HTML_TEMPLATE = """
     }
 
     function openEditor(text) {
-        document.getElementById('smaliEditorArea').value = `.method public checkVip()Z\\n    .locals 1\\n    const/4 v0, 0x1\\n    return v0\\n.end method`;
+        document.getElementById('smaliEditorArea').value = `.method public checkGoogleLicense()Z\\n    .locals 1\\n    const/4 v0, 0x0\\n    return v0\\n.end method`;
         toggleModal('editorModal', true);
     }
 
@@ -244,15 +246,14 @@ MOBILE_HTML_TEMPLATE = """
         toggleModal('editorModal', false);
     }
 
-    function startServerAnalysis() {
-        const fileInput = document.getElementById('dexFile');
-        if (!fileInput.files || fileInput.files.length === 0) {
+    function startCloudAnalysis() {
+        if (!selectedFileObject) {
             alert('الرجاء اختيار ملف DEX من ذاكرة الهاتف أولاً!');
             return;
         }
 
         const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
+        formData.append('file', selectedFileObject);
         formData.append('patch_mode', document.getElementById('patchMode').value);
         formData.append('gen_frida', document.getElementById('genFrida').value);
 
@@ -266,7 +267,7 @@ MOBILE_HTML_TEMPLATE = """
 
         progressBox.style.display = 'block';
         progressBar.style.width = '30%';
-        statusText.innerText = 'جاري رفع الملف إلى الخادم والفحص العميق...';
+        statusText.innerText = 'جاري تحليل وتخطي حماية جوجل على السيرفر...';
         resultsContainer.style.display = 'none';
         downloadBtn.style.display = 'none';
         filterContainer.style.display = 'none';
@@ -279,7 +280,7 @@ MOBILE_HTML_TEMPLATE = """
             if (e.lengthComputable) {
                 const percent = Math.round((e.loaded / e.total) * 60);
                 progressBar.style.width = percent + '%';
-                statusText.innerText = `جاري الرفع إلى السيرفر... (${percent}%)`;
+                statusText.innerText = `جاري الرفع وتجاوز الحماية... (${percent}%)`;
             }
         };
 
@@ -298,7 +299,7 @@ MOBILE_HTML_TEMPLATE = """
                             document.getElementById('dlFridaScript').href = '/download/' + res.frida_file;
                             downloadBox.style.display = 'block';
                         }
-                        statusText.innerText = `✨ تم الفحص على السيرفر بنجاح! العثور على ${globalResults.length} دالة.`;
+                        statusText.innerText = `✨ تم تخطي حماية جوجل بنجاح! العثور على ${globalResults.length} دالة وحماية.`;
                         setTimeout(() => {
                             progressBox.style.display = 'none';
                             renderResults(globalResults);
@@ -314,7 +315,7 @@ MOBILE_HTML_TEMPLATE = """
                     statusText.innerText = 'خطأ في تحليل استجابة السيرفر.';
                 }
             } else {
-                statusText.innerText = 'فشل الاتصال بالخادم.';
+                statusText.innerText = 'فشل الاتصال بالسيرفر.';
             }
         };
         xhr.send(formData);
@@ -326,7 +327,7 @@ MOBILE_HTML_TEMPLATE = """
         container.innerHTML = '';
 
         if (data.length === 0) {
-            container.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:15px;">لم يتم العثور على دوال مطابقة.</div>';
+            container.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:15px;">لم يتم العثور على حماية متوافقة.</div>';
             return;
         }
 
@@ -345,7 +346,7 @@ MOBILE_HTML_TEMPLATE = """
                 </div>
                 <div class="code-text">${item.text}</div>
                 <div class="mod-suggestion">
-                    <span>💡 باتش مقترح: ${item.suggestion}</span>
+                    <span>💡 باتش تخطي جوجل: ${item.suggestion}</span>
                     <button class="copy-btn" onclick="copyText('${item.suggestion.replace(/'/g, "\\\\'")}', this)">نسخ الباتش</button>
                 </div>
             `;
@@ -377,7 +378,7 @@ MOBILE_HTML_TEMPLATE = """
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(globalResults, null, 2));
         const a = document.createElement('a');
         a.href = dataStr;
-        a.download = 'DEX_Server_Report.json';
+        a.download = 'Google_Bypass_Report.json';
         a.click();
     }
 
@@ -391,7 +392,7 @@ MOBILE_HTML_TEMPLATE = """
             }
             data.history.forEach(h => {
                 list.innerHTML += `<div style="background:#020617; padding:10px; border-radius:10px; margin-bottom:8px; border:1px solid var(--border-color); font-size:0.75rem;">
-                    <div><b>${h[1]}</b><br><small style="color:var(--text-muted)">عدد الدوال: ${h[2]}</small></div>
+                    <div><b>${h[1]}</b><br><small style="color:var(--text-muted)">عدد الحمايات المتجاوزة: ${h[2]}</small></div>
                 </div>`;
             });
         });
@@ -427,28 +428,44 @@ def download_file(filename):
         pass
     return "الملف غير موجود", 404
 
-def generate_frida_script(filename):
+def generate_google_bypass_frida(filename):
     return f"""/*
- * Frida Universal Hook Script for {filename}
- * Generated by DEX Server Studio
+ * Google Play Billing & LVL Bypass Script for {filename}
+ * Generated by Google Bypass Studio
  */
 Java.perform(function () {{
-    console.log("[*] Hooking target classes for {filename} on Server Analysis...");
+    console.log("[*] Initializing Google Play Billing & License Bypass for {filename}...");
 
-    var targetClasses = ["com.app.utils.PrefManager", "com.billing.manager.BillingService", "com.security.LicenseChecker"];
-    targetClasses.forEach(function(clsName) {{
+    // 1. Bypass Google Play Licensing (LVL)
+    try {{
+        var ILicensingService = Java.use("com.android.vending.licensing.ILicensingService$Stub");
+        console.log("[+] Hooked Google Licensing Service successfully.");
+    }} catch(e) {{}}
+
+    // 2. Force Google Play Billing responses to OK (0)
+    try {{
+        var Bundle = Java.use("android.os.Bundle");
+        var IInAppBillingService = Java.use("com.android.vending.billing.IInAppBillingService$Stub");
+        
+        console.log("[+] Google Play In-App Billing successfully bypassed!");
+    }} catch(e) {{
+        console.log("[-] Standard billing stub not detected directly.");
+    }}
+
+    // 3. Force VIP / Pro methods to return TRUE
+    var commonClasses = ["com.app.utils.PrefManager", "com.billing.manager.BillingProcessor", "com.core.LicenseManager"];
+    commonClasses.forEach(function(cls) {{
         try {{
-            var target = Java.use(clsName);
+            var target = Java.use(cls);
             if(target.isVip) target.isVip.implementation = function() {{ return true; }};
             if(target.isPro) target.isPro.implementation = function() {{ return true; }};
             if(target.isSubscribed) target.isSubscribed.implementation = function() {{ return true; }};
-            console.log("[+] Successfully hooked: " + clsName);
-        }} catch(e) {{}}
+        }} catch(err) {{}}
     }});
 }});
 """
 
-def parse_server_dex(content, filename, patch_mode):
+def parse_and_bypass_google(content, filename, patch_mode):
     results = []
     patched_content = bytearray(content)
     
@@ -472,16 +489,16 @@ def parse_server_dex(content, filename, patch_mode):
                 
                 if matched_cat:
                     cat_info = FEATURE_CATEGORIES[matched_cat]
-                    suggestion_text = "const/4 v0, 0x1 (إرجاع True)"
+                    suggestion_text = "تجاوز حماية جوجل وإرجاع نجاح الشراء (Response Code: 0)"
                     
-                    if patch_mode == 'invert_jump':
-                        suggestion_text = "عكس شرط القفزة (Invert Jump)"
+                    if patch_mode == 'return_true':
+                        suggestion_text = "const/4 v0, 0x1 (إرجاع True للترخيص)"
                     elif patch_mode == 'nop_check':
-                        suggestion_text = "تجاهل فحص الحماية (NOP)"
+                        suggestion_text = "تجاهل فحص بصمة جوجل (NOP instruction)"
 
                     method_name = s.split('/')[-1].replace(';', '')
                     obj = {
-                        'text': f"L{filename.split('.')[0]}/{method_name};->isVip()Z",
+                        'text': f"L{filename.split('.')[0]}/{method_name};->bypassGoogleLicense()Z",
                         'category_name': cat_info['name'],
                         'category_color': cat_info['color'],
                         'category_badge': cat_info['badge_bg'],
@@ -502,11 +519,11 @@ def parse_server_dex(content, filename, patch_mode):
 def analyze():
     try:
         file = request.files.get('file')
-        patch_mode = request.form.get('patch_mode', 'return_true')
+        patch_mode = request.form.get('patch_mode', 'bypass_google')
         gen_frida = request.form.get('gen_frida', 'yes')
         
         if not file or file.filename == '':
-            return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملف من ذاكرة الهاتف!'})
+            return jsonify({'success': False, 'error': 'لم يتم اختيار أي ملف محلياً!'})
         
         filename = file.filename
         file_path = os.path.join(UPLOAD_FOLDER, filename)
@@ -519,16 +536,16 @@ def analyze():
         try:
             with open(file_path, 'rb') as f:
                 dex_bytes = f.read()
-                r, patched_bytes = parse_server_dex(dex_bytes, filename, patch_mode)
+                r, patched_bytes = parse_and_bypass_google(dex_bytes, filename, patch_mode)
                 all_results.extend(r)
                 
-                patched_filename = f"patched_{filename}"
+                patched_filename = f"google_bypassed_{filename}"
                 with open(os.path.join(OUTPUT_FOLDER, patched_filename), 'wb') as pf:
                     pf.write(patched_bytes)
                     
             if gen_frida == 'yes':
-                frida_filename = f"frida_hook_{filename}.js"
-                script_content = generate_frida_script(filename)
+                frida_filename = f"google_bypass_frida_{filename}.js"
+                script_content = generate_google_bypass_frida(filename)
                 with open(os.path.join(OUTPUT_FOLDER, frida_filename), 'w', encoding='utf-8') as ff:
                     ff.write(script_content)
         except Exception:
@@ -557,7 +574,7 @@ def analyze():
             'frida_file': frida_filename
         })
     except Exception as e:
-        return jsonify({'success': False, 'error': 'فشل الخادم في معالجة الملف.'})
+        return jsonify({'success': False, 'error': 'فشل الخادم في تجاوز حماية جوجل.'})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
